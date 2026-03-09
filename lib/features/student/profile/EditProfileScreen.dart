@@ -100,7 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         // Update Firestore with image URL
         await FirebaseFirestore.instance
-            .collection('user')
+            .collection('students')
             .doc(user.uid)
             .update({'profileImageUrl': downloadUrl});
 

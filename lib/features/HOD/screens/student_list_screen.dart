@@ -5,7 +5,7 @@ import 'student_details_screen.dart';
 class StudentListScreen extends StatefulWidget {
   final String department;
 
-  const StudentListScreen({super.key, this.department = "IoT"});
+  const StudentListScreen({super.key, this.department = "IT"});
 
   @override
   State<StudentListScreen> createState() => _StudentListScreenState();
@@ -29,7 +29,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
           const SizedBox(height: 10),
 
-          /// Search Bar
+          /// SEARCH BAR
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: TextField(
@@ -41,6 +41,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
+
               onChanged: (value){
                 setState(() {
                   searchQuery = value.toLowerCase();
@@ -51,12 +52,16 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
           const SizedBox(height: 10),
 
-          /// Firebase Student List
+          /// STUDENT LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
+
               stream: FirebaseFirestore.instance
-                  .collection("students")
+                  .collection("user")
+                  .where("role", isEqualTo: "student")
+                  //.where("dept", isEqualTo: widget.department)
                   .snapshots(),
+
               builder: (context, snapshot){
 
                 if(snapshot.connectionState == ConnectionState.waiting){
@@ -69,46 +74,74 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
                 final students = snapshot.data!.docs;
 
+                /// SEARCH FILTER
                 final filteredStudents = students.where((doc){
 
                   final data = doc.data() as Map<String,dynamic>;
 
-                  final name = (data['name'] ?? "").toString().toLowerCase();
-                  final roll = (data['rollNumber'] ?? "").toString();
+                  final name = (data["fullName"] ?? "")
+                      .toString()
+                      .toLowerCase();
+
+                  final enrollment = (data["enrollmentNo"] ?? "")
+                      .toString()
+                      .toLowerCase();
 
                   return name.contains(searchQuery) ||
-                         roll.contains(searchQuery);
+                      enrollment.contains(searchQuery);
 
                 }).toList();
 
+                if(filteredStudents.isEmpty){
+                  return const Center(child: Text("No matching student"));
+                }
+
                 return ListView.builder(
+
                   itemCount: filteredStudents.length,
+
                   itemBuilder: (context,index){
 
-                    final data = filteredStudents[index].data() as Map<String,dynamic>;
+                    final data = filteredStudents[index].data()
+                        as Map<String,dynamic>;
+
+                    final name = data["fullName"] ?? "Student";
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal:12,vertical:6),
+
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6
+                      ),
+
                       child: ListTile(
 
                         leading: CircleAvatar(
-  child: Text(
-    (data['name'] ?? "S").toString().isNotEmpty
-        ? data['name'].toString()[0]
-        : "S",
-  ),
-),
-                        title: Text(data['name'] ?? "Student"),
+                          child: Text(
+                            name.toString().isNotEmpty
+                                ? name.toString()[0].toUpperCase()
+                                : "S",
+                          ),
+                        ),
 
-                        subtitle: Text("Roll No: ${data['rollNumber'] ?? "-"}"),
+                        title: Text(name),
 
-                        trailing: const Icon(Icons.arrow_forward_ios,size:16),
+                        subtitle: Text(
+                          "Enrollment No: ${data["enrollmentNo"] ?? "-"}",
+                        ),
+
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                        ),
 
                         onTap: (){
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => StudentDetailsScreen(student: data),
+                              builder: (_)=>StudentDetailsScreen(
+                                student: data,
+                              ),
                             ),
                           );
                         },
@@ -116,7 +149,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     );
                   },
                 );
-
               },
             ),
           ),

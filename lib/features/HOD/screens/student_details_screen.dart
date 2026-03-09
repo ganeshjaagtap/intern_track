@@ -7,16 +7,14 @@ class StudentDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> internship = student["internship"] is Map
-        ? student["internship"]
-        : {};
+    /* final Map<String, dynamic> internship =
+        (student["internship"] ?? {}) as Map<String, dynamic>;
 
-    final Map<String, dynamic> mentor = student["mentor"] is Map
-        ? student["mentor"]
-        : {};
+    final Map<String, dynamic> mentor =
+        (student["mentor"] ?? {}) as Map<String, dynamic>;*/
 
     /// Safe student name
-    final String name = (student["name"] ?? "Student").toString();
+    final String name = (student["fullName"] ?? "Student").toString();
 
     return Scaffold(
       appBar: AppBar(title: Text(name)),
@@ -52,12 +50,12 @@ class StudentDetailsScreen extends StatelessWidget {
 
             const Divider(),
 
-            _infoTile("Full Name", name),
-            _infoTile("Roll Number", student["rollNumber"]),
-            _infoTile("Department", student["department"]),
+            _infoTile("Full Name", student["fullName"]),
+            _infoTile("Enrollment No", student["enrollmentNo"]),
+            _infoTile("Department", student["dept"]),
             _infoTile("Year", student["year"]),
             _infoTile("Email", student["email"]),
-            _infoTile("Phone", student["phone"]),
+            _infoTile("Phone", student["phoneNumber"]),
 
             const SizedBox(height: 20),
 
@@ -69,15 +67,12 @@ class StudentDetailsScreen extends StatelessWidget {
 
             const Divider(),
 
-            _infoTile("Company", internship["company"]),
-            _infoTile("Role", internship["role"]),
-            _infoTile("Type", internship["type"]),
-            _infoTile("Start Date", internship["startDate"]),
-            _infoTile("End Date", internship["endDate"]),
-
-            _statusTile("Status", internship["status"]),
-
-            _infoTile("Attendance (%)", internship["attendance"]),
+            _infoTile("Company", student["company"]),
+            _infoTile("Role", student["internshipRole"]),
+            _infoTile("Type", student["internshipType"]),
+            _infoTile("Start Date", student["startDate"]),
+            _infoTile("End Date", student["endDate"]),
+            _statusTile("Status", student["internshipStatus"]),
 
             const SizedBox(height: 20),
 
@@ -89,8 +84,8 @@ class StudentDetailsScreen extends StatelessWidget {
 
             const Divider(),
 
-            _infoTile("College Mentor", mentor["collegeMentor"]),
-            _infoTile("Company Mentor", mentor["companyMentor"]),
+            _infoTile("College Mentor", student["collegeMentor"]),
+            _infoTile("Company Mentor", student["companyMentor"]),
           ],
         ),
       ),
