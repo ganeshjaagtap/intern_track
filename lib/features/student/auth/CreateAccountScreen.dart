@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/features/faculty/dashboard/MentorInfoScreen.dart';
+import 'package:flutter_application_2/features/facultymentorinfo/dashboard/MentorInfoScreen.dart';
 import 'package:flutter_application_2/features/interns/screens/InternshipDetailsScreen.dart';
 
 // Import all completed screens

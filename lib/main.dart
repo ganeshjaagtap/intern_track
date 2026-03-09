@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for role check
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
-import 'package:flutter_application_2/university_mentor/layout/mentor_main_layout.dart';
+import 'package:flutter_application_2/features/HOD/layout/mentor_main_layout.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 

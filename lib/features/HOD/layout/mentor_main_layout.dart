@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/university_mentor/screens/mentor_screen.dart';
-import 'package:flutter_application_2/university_mentor/screens/companies_screen.dart';
-import 'package:flutter_application_2/university_mentor/screens/hod_dashboard_screen.dart';
-import 'package:flutter_application_2/university_mentor/screens/mentor_profile_screen.dart';
-import 'package:flutter_application_2/university_mentor/screens/hod_notifications_screen.dart'; // ✅ ADD THIS
+import 'package:flutter_application_2/features/HOD/screens/mentor_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/companies_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/hod_dashboard_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/mentor_profile_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/hod_notifications_screen.dart'; // ✅ ADD THIS
 
 class MentorMainLayout extends StatefulWidget {
   const MentorMainLayout({super.key});
