@@ -51,16 +51,18 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
     );
   }
 
-  void openDetails(Map<String, dynamic> data) {
+  /// Open notification details
+  void openDetails(Map<String, dynamic> data, String docId) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NotificationDetailsScreen(data: data),
+        builder: (context) =>
+            NotificationDetailsScreen(data: data, docId: docId),
       ),
     );
   }
 
-  /// Notification List Widget
+  /// Notification List
   Widget notificationList(String type, IconData icon) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -93,7 +95,9 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
           itemCount: docs.length,
           itemBuilder: (context, index) {
 
-            final data = docs[index].data() as Map<String, dynamic>;
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final docId = doc.id;
 
             return Card(
               margin: const EdgeInsets.all(10),
@@ -101,7 +105,7 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
                 leading: Icon(icon),
                 title: Text(data["title"] ?? ""),
                 subtitle: Text(data["desc"] ?? ""),
-                onTap: () => openDetails(data),
+                onTap: () => openDetails(data, docId),
               ),
             );
           },
@@ -203,11 +207,35 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
   }
 }
 
+///////////////////////////////////////////////////////////////
+/// Notification Details Screen
+///////////////////////////////////////////////////////////////
+
 class NotificationDetailsScreen extends StatelessWidget {
 
   final Map<String, dynamic> data;
+  final String docId;
 
-  const NotificationDetailsScreen({super.key, required this.data});
+  const NotificationDetailsScreen({
+    super.key,
+    required this.data,
+    required this.docId,
+  });
+
+  /// Delete notification
+  Future<void> deleteNotification(BuildContext context) async {
+
+    await FirebaseFirestore.instance
+        .collection("notifications")
+        .doc(docId)
+        .delete();
+
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Notification deleted")),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +289,19 @@ class NotificationDetailsScreen extends StatelessWidget {
               time,
               style: const TextStyle(color: Colors.grey),
             ),
+
+            const SizedBox(height:40),
+
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.delete),
+                label: const Text("Delete Notification"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                onPressed: () => deleteNotification(context),
+              ),
+            )
           ],
         ),
       ),

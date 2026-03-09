@@ -1,102 +1,116 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class NotificationScreen extends StatefulWidget {
+class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
 
-  @override
-  State<NotificationScreen> createState() => _NotificationScreenState();
-}
+  /// Convert Timestamp → readable date
+  String formatTime(Timestamp ts) {
+    DateTime dt = ts.toDate();
+    return "${dt.day}/${dt.month}/${dt.year}";
+  }
 
-class _NotificationScreenState extends State<NotificationScreen> {
-  final List<_NotificationItem> notifications = [
-    _NotificationItem(
-      title: "Report Approved",
-      message: "Your Week 2 Progress Report has been approved.",
-      time: "2h ago",
-      isRead: false,
-      icon: Icons.check_circle,
-      color: Colors.green,
-    ),
-    _NotificationItem(
-      title: "Attendance Alert",
-      message: "Your attendance is below 90% this month.",
-      time: "1 day ago",
-      isRead: false,
-      icon: Icons.warning_amber,
-      color: Colors.orange,
-    ),
-    _NotificationItem(
-      title: "Deadline Reminder",
-      message: "Week 8 progress report is due in 3 days.",
-      time: "2 days ago",
-      isRead: true,
-      icon: Icons.calendar_today,
-      color: Colors.redAccent,
-    ),
-    _NotificationItem(
-      title: "Mentor Message",
-      message: "Your mentor has sent you a message.",
-      time: "3 days ago",
-      isRead: true,
-      icon: Icons.chat_bubble_outline,
-      color: Colors.blue,
-    ),
-  ];
+  /// Icon based on type
+  IconData getIcon(String type) {
+    if (type == "alert") return Icons.warning_amber;
+    if (type == "notice") return Icons.campaign;
+    return Icons.notifications;
+  }
+
+  /// Color based on type
+  Color getColor(String type) {
+    if (type == "alert") return Colors.orange;
+    if (type == "notice") return Colors.blue;
+    return Colors.grey;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
 
-      // APP BAR
+      /// APPBAR
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BB6FF),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "NOTIFICATIONS",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                for (var n in notifications) {
-                  n.isRead = true;
-                }
-              });
-            },
-            child: const Text(
-              "Mark all read",
-              style: TextStyle(color: Colors.white),
-            ),
-          )
-        ],
       ),
 
-      // BODY
-      body: notifications.isEmpty
-          ? _emptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                return _notificationCard(notifications[index]);
-              },
-            ),
+      /// BODY
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("notifications")
+            .orderBy("createdAt", descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return _emptyState();
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+
+              final data = docs[index].data() as Map<String, dynamic>;
+
+              final title = data["title"] ?? "";
+              final message = data["desc"] ?? "";
+              final type = data["type"] ?? "";
+              final ts = data["createdAt"];
+
+              final icon = getIcon(type);
+              final color = getColor(type);
+
+              final time = ts != null ? formatTime(ts) : "";
+
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          StudentNotificationDetailsScreen(data: data),
+                    ),
+                  );
+                },
+                child: _notificationCard(
+                  title,
+                  message,
+                  time,
+                  icon,
+                  color,
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  /// NOTIFICATION CARD
-  Widget _notificationCard(_NotificationItem item) {
+  /// Notification Card UI
+  Widget _notificationCard(
+    String title,
+    String message,
+    String time,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: item.isRead ? Colors.white : const Color(0xFFEAF3FF),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -110,39 +124,43 @@ class _NotificationScreenState extends State<NotificationScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ICON
+          /// ICON
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.15),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(item.icon, color: item.color, size: 22),
+            child: Icon(icon, color: color, size: 22),
           ),
 
           const SizedBox(width: 12),
 
-          // CONTENT
+          /// CONTENT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Text(
-                  item.title,
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: item.isRead ? Colors.black : Colors.blue,
                   ),
                 ),
+
                 const SizedBox(height: 4),
+
                 Text(
-                  item.message,
+                  message,
                   style: const TextStyle(fontSize: 13),
                 ),
+
                 const SizedBox(height: 6),
+
                 Text(
-                  item.time,
+                  time,
                   style: const TextStyle(
                     fontSize: 11,
                     color: Colors.grey,
@@ -151,29 +169,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ],
             ),
           ),
-
-          // READ DOT
-          if (!item.isRead)
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6),
-              decoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-            ),
         ],
       ),
     );
   }
 
-  /// EMPTY STATE
+  /// Empty State
   Widget _emptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.notifications_off, size: 64, color: Colors.grey),
           SizedBox(height: 12),
           Text(
@@ -191,23 +197,75 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 }
 
-/// ============================
-/// MODEL
-/// ============================
-class _NotificationItem {
-  final String title;
-  final String message;
-  final String time;
-  bool isRead;
-  final IconData icon;
-  final Color color;
+///////////////////////////////////////////////////////////////
+/// Notification Details Screen
+///////////////////////////////////////////////////////////////
 
-  _NotificationItem({
-    required this.title,
-    required this.message,
-    required this.time,
-    required this.isRead,
-    required this.icon,
-    required this.color,
-  });
+class StudentNotificationDetailsScreen extends StatelessWidget {
+
+  final Map<String, dynamic> data;
+
+  const StudentNotificationDetailsScreen({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+
+    Timestamp? ts = data["createdAt"];
+    String time = "";
+
+    if (ts != null) {
+      DateTime dt = ts.toDate();
+      time = "${dt.day}/${dt.month}/${dt.year}  ${dt.hour}:${dt.minute}";
+    }
+
+    return Scaffold(
+
+      appBar: AppBar(
+        title: const Text("Notification Details"),
+      ),
+
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            /// Title
+            Text(
+              data["title"] ?? "",
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            /// Sender
+            Text(
+              "Sent by: ${data["sender"] ?? ""}",
+              style: const TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 20),
+
+            /// Description
+            Text(
+              data["desc"] ?? "",
+              style: const TextStyle(fontSize: 16),
+            ),
+
+            const SizedBox(height: 20),
+
+            /// Time
+            Text(
+              time,
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
