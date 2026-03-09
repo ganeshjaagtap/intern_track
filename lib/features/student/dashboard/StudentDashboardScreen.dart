@@ -41,6 +41,80 @@ class StudentDashboardScreen extends StatelessWidget {
     },
   ];
 
+  static final List<GroupMember> groupMembers = [
+    const GroupMember(
+      name: "Siddhika Deshmukh",
+      enrollmentNumber: "IT2026-001",
+      projectRole: "Team Leader",
+    ),
+    const GroupMember(
+      name: "Shruti Paraye",
+      enrollmentNumber: "IT2026-014",
+      projectRole: "Backend Developer",
+    ),
+    const GroupMember(
+      name: "Ganesh Jagtap",
+      enrollmentNumber: "IT2026-027",
+      projectRole: "UI/UX Designer",
+    ),
+    const GroupMember(
+      name: "Abhijeet Apare",
+      enrollmentNumber: "IT2026-033",
+      projectRole: "QA Engineer",
+    ),
+  ];
+
+  void _showGroupMemberDialog(BuildContext context, GroupMember member) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Group Member"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundImage: member.photoUrl != null
+                    ? NetworkImage(member.photoUrl!)
+                    : null,
+                child: member.photoUrl == null
+                    ? Text(
+                        _initials(member.name),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                member.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text("Enrollment: ${member.enrollmentNumber}"),
+              const SizedBox(height: 4),
+              Text("Role: ${member.projectRole}"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return "U";
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return "${parts[0][0]}${parts[1][0]}".toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -328,29 +402,26 @@ class StudentDashboardScreen extends StatelessWidget {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: ListView(
-                            children: const [
-                              ListTile(
-                                leading: CircleAvatar(child: Text("S")),
-                                title: Text("Siddhika Deshmukh"),
-                                subtitle: Text("Team Leader"),
-                              ),
-                              ListTile(
-                                leading: CircleAvatar(child: Text("S")),
-                                title: Text("Shruti Paraye"),
-                                subtitle: Text("Backend Developer"),
-                              ),
-                              ListTile(
-                                leading: CircleAvatar(child: Text("G")),
-                                title: Text("Ganesh Jagtap"),
-                                subtitle: Text("UI/UX Designer"),
-                              ),
-                              ListTile(
-                                leading: CircleAvatar(child: Text("A")),
-                                title: Text("Abhijeet Apare"),
-                                subtitle: Text("QA Engineer"),
-                              ),
-                            ],
+                          child: ListView.builder(
+                            itemCount: groupMembers.length,
+                            itemBuilder: (context, index) {
+                              final member = groupMembers[index];
+
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundImage: member.photoUrl != null
+                                      ? NetworkImage(member.photoUrl!)
+                                      : null,
+                                  child: member.photoUrl == null
+                                      ? Text(_initials(member.name))
+                                      : null,
+                                ),
+                                title: Text(member.name),
+                                subtitle: Text(member.projectRole),
+                                onTap: () =>
+                                    _showGroupMemberDialog(context, member),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -366,6 +437,20 @@ class StudentDashboardScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class GroupMember {
+  final String name;
+  final String enrollmentNumber;
+  final String projectRole;
+  final String? photoUrl;
+
+  const GroupMember({
+    required this.name,
+    required this.enrollmentNumber,
+    required this.projectRole,
+    this.photoUrl,
+  });
 }
 
 ////////////////////////////////////////////////////////////

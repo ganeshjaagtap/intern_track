@@ -5,8 +5,6 @@ import 'package:flutter_application_2/core/utils/mentor_emails.dart';
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/university_mentor/layout/mentor_main_layout.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
-import 'package:flutter_application_2/features/student/dashboard/StudentDashboardScreen.dart';
 import 'package:flutter_application_2/features/student/auth/CreateAccountScreen.dart';
 
 class LoginScreen extends StatefulWidget {
