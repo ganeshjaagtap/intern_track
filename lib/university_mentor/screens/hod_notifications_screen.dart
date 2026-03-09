@@ -24,7 +24,7 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  /// Publish Notification
+  /// PUBLISH NOTIFICATION
   Future<void> publishNotification() async {
 
     if (titleController.text.isEmpty || descController.text.isEmpty) {
@@ -51,7 +51,7 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
     );
   }
 
-  /// Open notification details
+  /// OPEN DETAILS SCREEN
   void openDetails(Map<String, dynamic> data, String docId) {
     Navigator.push(
       context,
@@ -62,7 +62,7 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
     );
   }
 
-  /// Notification List
+  /// NOTIFICATION LIST
   Widget notificationList(String type, IconData icon) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -73,10 +73,6 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return const Center(child: Text("Error loading notifications"));
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -97,7 +93,6 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
 
             final doc = docs[index];
             final data = doc.data() as Map<String, dynamic>;
-            final docId = doc.id;
 
             return Card(
               margin: const EdgeInsets.all(10),
@@ -105,7 +100,7 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
                 leading: Icon(icon),
                 title: Text(data["title"] ?? ""),
                 subtitle: Text(data["desc"] ?? ""),
-                onTap: () => openDetails(data, docId),
+                onTap: () => openDetails(data, doc.id),
               ),
             );
           },
@@ -135,10 +130,10 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
         controller: _tabController,
         children: [
 
-          /// ALERTS
+          /// ALERT TAB
           notificationList("alert", Icons.notifications),
 
-          /// NOTICES
+          /// NOTICE TAB
           notificationList("notice", Icons.campaign),
 
           /// PUBLISH TAB
@@ -196,11 +191,9 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
                   onPressed: publishNotification,
                   child: const Text("Publish Notification"),
                 )
-
               ],
             ),
           )
-
         ],
       ),
     );
@@ -208,10 +201,10 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
 }
 
 ///////////////////////////////////////////////////////////////
-/// Notification Details Screen
+/// NOTIFICATION DETAILS SCREEN
 ///////////////////////////////////////////////////////////////
 
-class NotificationDetailsScreen extends StatelessWidget {
+class NotificationDetailsScreen extends StatefulWidget {
 
   final Map<String, dynamic> data;
   final String docId;
@@ -222,25 +215,68 @@ class NotificationDetailsScreen extends StatelessWidget {
     required this.docId,
   });
 
-  /// Delete notification
-  Future<void> deleteNotification(BuildContext context) async {
+  @override
+  State<NotificationDetailsScreen> createState() =>
+      _NotificationDetailsScreenState();
+}
+
+class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
+
+  late TextEditingController titleController;
+  late TextEditingController descController;
+
+  String selectedType = "alert";
+  bool isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    titleController = TextEditingController(text: widget.data["title"]);
+    descController = TextEditingController(text: widget.data["desc"]);
+    selectedType = widget.data["type"] ?? "alert";
+  }
+
+  /// UPDATE NOTIFICATION
+  Future<void> updateNotification() async {
 
     await FirebaseFirestore.instance
         .collection("notifications")
-        .doc(docId)
+        .doc(widget.docId)
+        .update({
+      "title": titleController.text,
+      "desc": descController.text,
+      "type": selectedType,
+    });
+
+    setState(() {
+      isEditing = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Notification Updated")),
+    );
+  }
+
+  /// DELETE NOTIFICATION
+  Future<void> deleteNotification() async {
+
+    await FirebaseFirestore.instance
+        .collection("notifications")
+        .doc(widget.docId)
         .delete();
 
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Notification deleted")),
+      const SnackBar(content: Text("Notification Deleted")),
     );
   }
 
   @override
   Widget build(BuildContext context) {
 
-    Timestamp? ts = data["createdAt"];
+    Timestamp? ts = widget.data["createdAt"];
     String time = "";
 
     if (ts != null) {
@@ -252,6 +288,24 @@ class NotificationDetailsScreen extends StatelessWidget {
 
       appBar: AppBar(
         title: const Text("Notification Details"),
+        actions: [
+
+          /// EDIT BUTTON
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: (){
+              setState(() {
+                isEditing = true;
+              });
+            },
+          ),
+
+          /// DELETE BUTTON
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: deleteNotification,
+          ),
+        ],
       ),
 
       body: Padding(
@@ -261,27 +315,67 @@ class NotificationDetailsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            Text(
-              data["title"] ?? "",
-              style: const TextStyle(
-                fontSize:22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            /// TITLE
+            isEditing
+                ? TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: "Title",
+                    ),
+                  )
+                : Text(
+                    titleController.text,
+                    style: const TextStyle(
+                      fontSize:22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
 
             const SizedBox(height:10),
 
             Text(
-              "Sent by: ${data["sender"] ?? ""}",
+              "Sent by: ${widget.data["sender"] ?? ""}",
               style: const TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height:20),
 
-            Text(
-              data["desc"] ?? "",
-              style: const TextStyle(fontSize:16),
-            ),
+            /// DESCRIPTION
+            isEditing
+                ? TextField(
+                    controller: descController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: "Description",
+                    ),
+                  )
+                : Text(
+                    descController.text,
+                    style: const TextStyle(fontSize:16),
+                  ),
+
+            const SizedBox(height:20),
+
+            /// TYPE
+            if (isEditing)
+              DropdownButtonFormField(
+                value: selectedType,
+                items: const [
+                  DropdownMenuItem(
+                    value: "alert",
+                    child: Text("Alert"),
+                  ),
+                  DropdownMenuItem(
+                    value: "notice",
+                    child: Text("Notice"),
+                  ),
+                ],
+                onChanged: (value){
+                  setState(() {
+                    selectedType = value!;
+                  });
+                },
+              ),
 
             const SizedBox(height:20),
 
@@ -292,16 +386,15 @@ class NotificationDetailsScreen extends StatelessWidget {
 
             const SizedBox(height:40),
 
-            Center(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.delete),
-                label: const Text("Delete Notification"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+            /// SAVE BUTTON
+            if (isEditing)
+              Center(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text("Save Changes"),
+                  onPressed: updateNotification,
                 ),
-                onPressed: () => deleteNotification(context),
-              ),
-            )
+              )
           ],
         ),
       ),
