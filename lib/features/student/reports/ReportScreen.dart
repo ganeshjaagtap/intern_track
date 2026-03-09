@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ViewReportScreen.dart';
 import 'SubmitReportScreen.dart';
-import '../dashboard/StudentDashboardScreen.dart';
-import '../attendance/AttendanceScreen.dart';
-import '../profile/SettingsScreen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({Key? key}) : super(key: key);
@@ -34,58 +31,25 @@ class _ReportScreenState extends State<ReportScreen> {
 
   final List<int> years = [2025, 2026, 2027];
 
-  final List<ReportItem> reports = [
-    ReportItem(
-      title: "Week 1 Progress Report",
-      period: "1 Jan - 7 Jan",
-      status: ReportStatus.approved,
-      mentor: "Dr. Sharma",
-      score: 8.5,
-    ),
-    ReportItem(
-      title: "Week 2 Progress Report",
-      period: "8 Jan - 14 Jan",
-      status: ReportStatus.approved,
-      mentor: "Dr. Sharma",
-      score: 9.0,
-    ),
-    ReportItem(
-      title: "Week 3 Progress Report",
-      period: "15 Jan - 21 Jan",
-      status: ReportStatus.pending,
-      mentor: "Dr. Sharma",
-      score: null,
-    ),
-    ReportItem(
-      title: "Monthly Summary",
-      period: "January 2026",
-      status: ReportStatus.submitted,
-      mentor: "Internship Cell",
-      score: null,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
 
-     
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BB6FF),
-        elevation: 0,
-       
-        title: const Text("REPORTS", style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
+        title: const Text(
+          "REPORTS",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
 
-      /// BODY
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// FILTERS
-            Row(
+      body: Column(
+        children: [
+          /// FILTER SECTION
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
                 Expanded(
                   child: _dropdown(
@@ -100,94 +64,91 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                       ),
                       onChanged: (v) {
-                        if (v != null) setState(() => selectedMonth = v);
+                        if (v != null) {
+                          setState(() => selectedMonth = v);
+                        }
                       },
                     ),
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _dropdown(
                     DropdownButton<int>(
                       value: selectedYear,
                       isExpanded: true,
-                      items: years
-                          .map(
-                            (y) => DropdownMenuItem(
-                              value: y,
-                              child: Text(y.toString()),
-                            ),
-                          )
-                          .toList(),
+                      items: years.map((y) {
+                        return DropdownMenuItem(
+                          value: y,
+                          child: Text(y.toString()),
+                        );
+                      }).toList(),
                       onChanged: (v) {
-                        if (v != null) setState(() => selectedYear = v);
+                        if (v != null) {
+                          setState(() => selectedYear = v);
+                        }
                       },
                     ),
                   ),
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 20),
+          /// REPORT LIST FROM FIREBASE
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("reports")
+                  .orderBy("createdAt", descending: true)
+                  .snapshots(),
 
-            /// OVERVIEW
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: const [
-                  _OverviewItem(
-                    label: "Attendance",
-                    value: "87%",
-                    icon: Icons.calendar_today,
-                    color: Colors.green,
-                  ),
-                  _OverviewItem(
-                    label: "Reports",
-                    value: "4",
-                    icon: Icons.description,
-                    color: Colors.blue,
-                  ),
-                  _OverviewItem(
-                    label: "Score",
-                    value: "8.7",
-                    icon: Icons.star,
-                    color: Colors.orange,
-                  ),
-                ],
-              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No reports submitted yet"));
+                }
+
+                final docs = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+
+                  itemCount: docs.length,
+
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+
+                    return _ReportCard(
+                      reportId: docs[index].id,
+                      title: data["title"] ?? "",
+                      period: data["period"] ?? "",
+                      mentor: data["mentor"] ?? "",
+                      status: data["status"] ?? "pending",
+                    );
+                  },
+                );
+              },
             ),
+          ),
 
-            const SizedBox(height: 24),
-
-            const Text(
-              "Your Reports",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 12),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: reports.length,
-              itemBuilder: (_, i) => _ReportCard(report: reports[i]),
-            ),
-
-            const SizedBox(height: 20),
-
-            SizedBox(
+          /// SUBMIT REPORT BUTTON
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
               width: double.infinity,
+
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6BB6FF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  foregroundColor: Colors.white,
                 ),
+
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -196,18 +157,14 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   );
                 },
+
                 icon: const Icon(Icons.upload_file),
                 label: const Text("Submit New Report"),
-                
-                ),
               ),
-            
-
-            const SizedBox(height: 40),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
-
     );
   }
 
@@ -223,91 +180,71 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 }
 
-
-
-/// =======================
-/// MODELS & WIDGETS
-/// =======================
-
-enum ReportStatus { submitted, pending, approved }
-
-class ReportItem {
+/// REPORT CARD
+class _ReportCard extends StatelessWidget {
+  final String reportId;
   final String title;
   final String period;
-  final ReportStatus status;
   final String mentor;
-  final double? score;
+  final String status;
 
-  ReportItem({
+  const _ReportCard({
+    required this.reportId,
     required this.title,
     required this.period,
-    required this.status,
     required this.mentor,
-    required this.score,
+    required this.status,
   });
-}
 
-class _ReportCard extends StatelessWidget {
-  final ReportItem report;
+  Color statusColor() {
+    if (status == "approved") return Colors.green;
+    if (status == "pending") return Colors.orange;
 
-  const _ReportCard({required this.report});
-
-  Color _statusColor() {
-    switch (report.status) {
-      case ReportStatus.approved:
-        return Colors.green;
-      case ReportStatus.pending:
-        return Colors.orange;
-      case ReportStatus.submitted:
-        return Colors.blue;
-    }
-  }
-
-  String _statusText() {
-    switch (report.status) {
-      case ReportStatus.approved:
-        return "Approved";
-      case ReportStatus.pending:
-        return "Pending";
-      case ReportStatus.submitted:
-        return "Submitted";
-    }
+    return Colors.blue;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
+
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
+          /// TITLE + STATUS
           Row(
             children: [
               Expanded(
                 child: Text(
-                  report.title,
+                  title,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
+
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 4,
                 ),
+
                 decoration: BoxDecoration(
-                  color: _statusColor().withOpacity(0.15),
+                  color: statusColor().withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
+
                 child: Text(
-                  _statusText(),
+                  status.toUpperCase(),
                   style: TextStyle(
+                    color: statusColor(),
                     fontSize: 12,
-                    color: _statusColor(),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -316,55 +253,46 @@ class _ReportCard extends StatelessWidget {
           ),
 
           const SizedBox(height: 8),
-          Text(report.period, style: const TextStyle(color: Colors.grey)),
+
+          /// PERIOD
+          Text(period, style: const TextStyle(color: Colors.grey)),
+
           const SizedBox(height: 8),
 
+          /// MENTOR
           Row(
             children: [
               const Icon(Icons.person, size: 16, color: Colors.grey),
+
               const SizedBox(width: 4),
-              Text(report.mentor, style: const TextStyle(color: Colors.grey)),
-              const Spacer(),
-              if (report.score != null)
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      report.score!.toString(),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+
+              Text(mentor, style: const TextStyle(color: Colors.grey)),
             ],
           ),
 
           const SizedBox(height: 12),
 
+          /// ACTION BUTTONS
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
+
             children: [
               TextButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ViewReportScreen(
-                        title: report.title,
-                        period: report.period,
-                        mentor: report.mentor,
-                      ),
+                      builder: (_) => ViewReportScreen(reportId: reportId),
                     ),
                   );
                 },
                 child: const Text("View"),
               ),
+
               TextButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Report downloaded successfully"),
-                    ),
+                    const SnackBar(content: Text("Report downloaded")),
                   );
                 },
                 child: const Text("Download"),
@@ -373,40 +301,6 @@ class _ReportCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _OverviewItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _OverviewItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
     );
   }
 }
