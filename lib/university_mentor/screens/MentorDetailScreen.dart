@@ -10,6 +10,16 @@ class MentorDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = mentorData['name'] ?? "Unknown Mentor";
+    final designation = mentorData['designation'] ?? "Faculty Member";
+    final img = mentorData['img'] ?? "";
+    final email = mentorData['email'] ?? "";
+    final phone = mentorData['phone'] ?? "Not Provided";
+    final id = mentorData['id'] ?? "Not Assigned";
+    final dept = mentorData['dept'] ?? "Not Specified";
+    final totalStudents = mentorData['totalStudents'] ?? "0";
+    final companies = mentorData['companies'] ?? "Not Available";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F9),
       extendBodyBehindAppBar: true,
@@ -29,7 +39,7 @@ class MentorDetailScreen extends StatelessWidget {
         child: Column(
           children: [
 
-            /// TOP PROFILE HEADER
+            /// HEADER
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 90, bottom: 40),
@@ -40,20 +50,21 @@ class MentorDetailScreen extends StatelessWidget {
                   bottomRight: Radius.circular(40),
                 ),
               ),
-
               child: Column(
                 children: [
 
                   /// PROFILE IMAGE
                   Hero(
-                    tag: mentorData['name'] ?? 'mentor',
+                    tag: name,
                     child: CircleAvatar(
                       radius: 60,
                       backgroundColor: Colors.white,
                       child: CircleAvatar(
                         radius: 56,
                         backgroundImage: NetworkImage(
-                          mentorData['img'] ?? "https://i.pravatar.cc/150",
+                          img.isNotEmpty
+                              ? img
+                              : "https://i.pravatar.cc/150",
                         ),
                       ),
                     ),
@@ -63,7 +74,7 @@ class MentorDetailScreen extends StatelessWidget {
 
                   /// NAME
                   Text(
-                    mentorData['name'] ?? "Unknown Mentor",
+                    name,
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -75,14 +86,13 @@ class MentorDetailScreen extends StatelessWidget {
 
                   /// DESIGNATION
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(.25),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      mentorData['designation'] ?? "Faculty Member",
+                      designation,
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -100,14 +110,9 @@ class MentorDetailScreen extends StatelessWidget {
                   /// FACULTY INFO
                   _buildSectionTitle("Faculty Information"),
                   _buildDetailCard([
-                    _buildRow(
-                        Icons.badge_outlined,
-                        "Faculty ID",
-                        mentorData['id'] ?? "Not Assigned"),
-                    _buildRow(Icons.account_tree_outlined, "Department",
-                        mentorData['dept'] ?? "Not Specified"),
-                    _buildRow(Icons.workspace_premium_outlined, "Designation",
-                        mentorData['designation'] ?? "Professor"),
+                    _buildRow(Icons.badge_outlined, "Faculty ID", id),
+                    _buildRow(Icons.account_tree_outlined, "Department", dept),
+                    _buildRow(Icons.workspace_premium_outlined, "Designation", designation),
                   ]),
 
                   const SizedBox(height: 20),
@@ -115,21 +120,17 @@ class MentorDetailScreen extends StatelessWidget {
                   /// CONTACT INFO
                   _buildSectionTitle("Contact Details"),
                   _buildDetailCard([
-                    _buildRow(Icons.email_outlined, "Email",
-                        mentorData['email'] ?? "Not Provided"),
-                    _buildRow(Icons.phone_android_outlined, "Phone",
-                        mentorData['phone'] ?? "Not Provided"),
+                    _buildRow(Icons.email_outlined, "Email", email),
+                    _buildRow(Icons.phone_android_outlined, "Phone", phone),
                   ]),
 
                   const SizedBox(height: 20),
 
-                  /// STUDENT SUPERVISION
+                  /// STUDENT INFO
                   _buildSectionTitle("Student Oversight"),
                   _buildDetailCard([
-                    _buildRow(Icons.groups_outlined, "Total Students",
-                        mentorData['totalStudents'] ?? "0"),
-                    _buildRow(Icons.business_center_outlined,
-                        "Internship Companies", mentorData['companies'] ?? "0"),
+                    _buildRow(Icons.groups_outlined, "Total Students", totalStudents),
+                    _buildRow(Icons.business_center_outlined, "Internship Companies", companies),
                   ]),
 
                   const SizedBox(height: 30),
@@ -147,9 +148,7 @@ class MentorDetailScreen extends StatelessWidget {
                           letterSpacing: 1.2,
                         ),
                       ),
-                      onPressed: () {
-                        _launchEmail(mentorData['email']);
-                      },
+                      onPressed: email.isEmpty ? null : () => _launchEmail(email),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBlue,
                         shape: RoundedRectangleBorder(
@@ -185,7 +184,7 @@ class MentorDetailScreen extends StatelessWidget {
     );
   }
 
-  /// CARD CONTAINER
+  /// CARD
   Widget _buildDetailCard(List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -211,7 +210,6 @@ class MentorDetailScreen extends StatelessWidget {
       child: Row(
         children: [
 
-          /// ICON
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -223,7 +221,6 @@ class MentorDetailScreen extends StatelessWidget {
 
           const SizedBox(width: 15),
 
-          /// TEXT
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,17 +228,19 @@ class MentorDetailScreen extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500),
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
               ],
             ),
@@ -251,14 +250,19 @@ class MentorDetailScreen extends StatelessWidget {
     );
   }
 
-  /// EMAIL LAUNCHER
-  Future<void> _launchEmail(String? email) async {
-    if (email == null || email.isEmpty) return;
+  /// EMAIL LAUNCH
+  Future<void> _launchEmail(String email) async {
 
-    final Uri url = Uri.parse("mailto:$email");
+    final Uri url = Uri(
+      scheme: 'mailto',
+      path: email,
+    );
 
     if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+      await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
     }
   }
 }

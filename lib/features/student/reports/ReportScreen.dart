@@ -18,8 +18,18 @@ class _ReportScreenState extends State<ReportScreen> {
   int selectedYear = 2026;
 
   final List<String> months = const [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   final List<int> years = [2025, 2026, 2027];
@@ -60,16 +70,13 @@ class _ReportScreenState extends State<ReportScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
 
-      /// 🔙 APP BAR
+     
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BB6FF),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text("REPORTS"),
-      ),
+       
+        title: const Text("REPORTS", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
 
       /// BODY
       body: SingleChildScrollView(
@@ -77,41 +84,47 @@ class _ReportScreenState extends State<ReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             /// FILTERS
             Row(
               children: [
-                Expanded(child: _dropdown(
-                  DropdownButton<int>(
-                    value: selectedMonth,
-                    isExpanded: true,
-                    items: List.generate(12, (i) =>
-                      DropdownMenuItem(
-                        value: i + 1,
-                        child: Text(months[i]),
+                Expanded(
+                  child: _dropdown(
+                    DropdownButton<int>(
+                      value: selectedMonth,
+                      isExpanded: true,
+                      items: List.generate(
+                        12,
+                        (i) => DropdownMenuItem(
+                          value: i + 1,
+                          child: Text(months[i]),
+                        ),
                       ),
+                      onChanged: (v) {
+                        if (v != null) setState(() => selectedMonth = v);
+                      },
                     ),
-                    onChanged: (v) {
-                      if (v != null) setState(() => selectedMonth = v);
-                    },
                   ),
-                )),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _dropdown(
-                  DropdownButton<int>(
-                    value: selectedYear,
-                    isExpanded: true,
-                    items: years.map((y) =>
-                      DropdownMenuItem(
-                        value: y,
-                        child: Text(y.toString()),
-                      ),
-                    ).toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => selectedYear = v);
-                    },
+                Expanded(
+                  child: _dropdown(
+                    DropdownButton<int>(
+                      value: selectedYear,
+                      isExpanded: true,
+                      items: years
+                          .map(
+                            (y) => DropdownMenuItem(
+                              value: y,
+                              child: Text(y.toString()),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => selectedYear = v);
+                      },
+                    ),
                   ),
-                )),
+                ),
               ],
             ),
 
@@ -173,6 +186,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6BB6FF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: Colors.white,
                 ),
                 onPressed: () {
                   Navigator.push(
@@ -184,16 +198,16 @@ class _ReportScreenState extends State<ReportScreen> {
                 },
                 icon: const Icon(Icons.upload_file),
                 label: const Text("Submit New Report"),
+                
+                ),
               ),
-            ),
+            
 
             const SizedBox(height: 40),
           ],
         ),
       ),
 
-      /// 🔵 CUSTOM BOTTOM BAR WITH CHAT
-      bottomNavigationBar: _CustomBottomNav(currentIndex: 2),
     );
   }
 
@@ -209,146 +223,7 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 }
 
-/// =======================
-/// CUSTOM BOTTOM NAV
-/// =======================
-class _CustomBottomNav extends StatelessWidget {
-  final int currentIndex; // 0=Home,1=Attendance,2=Report,3=Settings
 
-  const _CustomBottomNav({required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 72,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-
-          Container(
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 8),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-
-                _navItem(
-                  icon: Icons.home,
-                  label: "Home",
-                  active: currentIndex == 0,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const StudentDashboardScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                _navItem(
-                  icon: Icons.check_circle_outline,
-                  label: "Attendance",
-                  active: currentIndex == 1,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AttendanceScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(width: 60),
-
-                _navItem(
-                  icon: Icons.description,
-                  label: "Report",
-                  active: currentIndex == 2,
-                  onTap: () {},
-                ),
-
-                _navItem(
-                  icon: Icons.settings,
-                  label: "Settings",
-                  active: currentIndex == 3,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          /// CENTER CHAT
-          Positioned(
-            top: 0,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ChatSelectionScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.blue, width: 4),
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.blue,
-                  size: 30,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool active,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: active ? Colors.blue : Colors.grey),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: active ? Colors.blue : Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// =======================
 /// MODELS & WIDGETS
@@ -420,7 +295,10 @@ class _ReportCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: _statusColor().withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),

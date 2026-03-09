@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'MentorDetailScreen.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'MentorDetailScreen.dart';
 
 class MentorScreen extends StatefulWidget {
   const MentorScreen({super.key});
@@ -10,58 +11,7 @@ class MentorScreen extends StatefulWidget {
 
 class _MentorScreenState extends State<MentorScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  final List<Map<String, String>> _allMentors = [
-    {
-      "name": "Dr. R. Shinde",
-      "id": "EMP101",
-      "dept": "Computer Engineering",
-      "designation": "Professor",
-      "email": "jassicarobert@gmail.com",
-      "phone": "+91 9876543210",
-      "totalStudents": "12",
-      "companies": "Google, Amazon, TCS",
-      "img": "https://i.pravatar.cc/150?u=1"
-    },
-    {
-      "name": "Carol Sons",
-      "id": "EMP102",
-      "dept": "Information Technology",
-      "designation": "Assistant Professor",
-      "email": "carolsons@gmail.com",
-      "phone": "+91 9876543211",
-      "totalStudents": "8",
-      "companies": "Tesla, Microsoft",
-      "img": "https://i.pravatar.cc/150?u=2"
-    },
-    {
-      "name": "Robert Jason",
-      "id": "EMP103",
-      "dept": "Mechanical Engineering",
-      "designation": "Lecturer",
-      "email": "robertjason@gmail.com",
-      "phone": "+91 9876543212",
-      "totalStudents": "10",
-      "companies": "BMW, Ford",
-      "img": "https://i.pravatar.cc/150?u=3"
-    },
-  ];
-
-  List<Map<String, String>> _filteredMentors = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredMentors = _allMentors;
-  }
-
-  void _filterMentors(String query) {
-    setState(() {
-      _filteredMentors = _allMentors
-          .where((m) => m['name']!.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
+  String searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +22,8 @@ class _MentorScreenState extends State<MentorScreen> {
       backgroundColor: bgLight,
       body: Column(
         children: [
-          /// 📘 HEADER
+
+          /// SEARCH BAR
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             decoration: const BoxDecoration(color: primaryBlue),
@@ -87,7 +38,11 @@ class _MentorScreenState extends State<MentorScreen> {
                 ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: _filterMentors,
+                  onChanged: (value) {
+                    setState(() {
+                      searchQuery = value.toLowerCase();
+                    });
+                  },
                   decoration: const InputDecoration(
                     icon: Icon(Icons.search, color: primaryBlue),
                     hintText: "Search mentor...",
@@ -98,7 +53,7 @@ class _MentorScreenState extends State<MentorScreen> {
             ),
           ),
 
-          /// ⚪ TITLE BAR
+          /// TITLE
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20),
@@ -116,14 +71,60 @@ class _MentorScreenState extends State<MentorScreen> {
             ),
           ),
 
-          /// 📜 LIST VIEW
+          /// MENTOR LIST
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              itemCount: _filteredMentors.length,
-              itemBuilder: (context, index) {
-                final mentor = _filteredMentors[index];
-                return _buildMentorCard(mentor, primaryBlue);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('mentor')
+                  .snapshots(),
+              builder: (context, snapshot) {
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No mentors found"));
+                }
+
+                final mentors = snapshot.data!.docs;
+
+                /// SEARCH FILTER
+                final filteredMentors = mentors.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] ?? "")
+                      .toString()
+                      .toLowerCase();
+                  return name.contains(searchQuery);
+                }).toList();
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 15,
+                  ),
+                  itemCount: filteredMentors.length,
+                  itemBuilder: (context, index) {
+
+                    final data =
+                        filteredMentors[index].data() as Map<String, dynamic>;
+
+                    /// Convert Firestore → String map
+                    Map<String, String> mentor = {
+                      "name": data['name']?.toString() ?? "",
+                      "id": data['id']?.toString() ?? "",
+                      "dept": data['dept']?.toString() ?? "",
+                      "designation": data['designation']?.toString() ?? "",
+                      "email": data['email']?.toString() ?? "",
+                      "phone": data['phone']?.toString() ?? "",
+                      "totalStudents": data['totalStudents']?.toString() ?? "",
+                      "companies": data['companies']?.toString() ?? "",
+                      "img": data['img']?.toString() ?? "",
+                    };
+
+                    return _buildMentorCard(mentor, primaryBlue);
+                  },
+                );
               },
             ),
           ),
@@ -132,58 +133,92 @@ class _MentorScreenState extends State<MentorScreen> {
     );
   }
 
+  /// MENTOR CARD
   Widget _buildMentorCard(Map<String, String> mentor, Color themeColor) {
+
+    final name = mentor['name'] ?? "";
+    final email = mentor['email'] ?? "Not Provided";
+    final img = mentor['img'] ?? "";
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      // 💡 Material & InkWell ensure the tap is felt across the whole card
+
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(25),
+
           onTap: () {
-            debugPrint("Navigating to detail for: ${mentor['name']}");
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => MentorDetailScreen(mentorData: mentor),
+                builder: (context) =>
+                    MentorDetailScreen(mentorData: mentor),
               ),
             );
           },
+
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
+
+                /// IMAGE
                 Hero(
-                  tag: mentor['name']!, // Matches tag in Detail Screen
+                  tag: name,
                   child: CircleAvatar(
                     radius: 28,
-                    backgroundImage: NetworkImage(mentor['img']!),
+                    backgroundImage: NetworkImage(
+                      img.isNotEmpty
+                          ? img
+                          : "https://i.pravatar.cc/150",
+                    ),
                   ),
                 ),
+
                 const SizedBox(width: 15),
+
+                /// TEXT
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+
                       Text(
-                        mentor['name']!,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
+
                       Text(
-                        mentor['email']!,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        email,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 18),
+
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey,
+                  size: 18,
+                ),
               ],
             ),
           ),

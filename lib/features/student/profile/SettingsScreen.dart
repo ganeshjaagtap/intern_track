@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../auth/Main_Login.dart'; // Ensure this matches your login file
+import 'package:image_picker/image_picker.dart';
+
+import 'package:flutter_application_2/features/student/profile/NotificationSettingScreen.dart';
+
+import '../auth/Main_Login.dart';
+
 import 'EditProfileScreen.dart';
-import 'NotificationScreen.dart';
 import 'PrivacySecurityScreen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -12,174 +17,270 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+
   bool isDarkMode = false;
+
+  File? profileImage;
+  final ImagePicker _picker = ImagePicker();
+
+  /// PICK PROFILE IMAGE
+  Future<void> _pickProfileImage() async {
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+
+    if (picked != null) {
+      setState(() {
+        profileImage = File(picked.path);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ REMOVED: Scaffold and AppBar (handled by the parent StudentMainLayout)
-    // ✅ RETURNING: Only the Body content
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// 👤 PROFILE CARD
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.redAccent,
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+
+      /// APP BAR
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF6BB6FF),
+        elevation: 0,
+        title: const Text(
+          "SETTINGS",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+
+      /// BODY
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            /// PROFILE CARD
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+
+                  /// PROFILE IMAGE PICKER
+                  Stack(
                     children: [
-                      Text(
-                        "Alex Johnson",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+
+                      GestureDetector(
+                        onTap: _pickProfileImage,
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: Colors.redAccent,
+                          backgroundImage: profileImage != null
+                              ? FileImage(profileImage!)
+                              : null,
+                          child: profileImage == null
+                              ? const Icon(Icons.person, color: Colors.white)
+                              : null,
+                        ),
                       ),
-                      Text(
-                        "alex_johnson@university.edu",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "Student",
-                        style: TextStyle(
-                            fontSize: 12,
+
+                      /// CAMERA ICON
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
                             color: Colors.blue,
-                            fontWeight: FontWeight.w500),
-                      ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
                     ],
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.grey),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                    );
-                  },
-                )
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 24),
+                  const SizedBox(width: 12),
 
-          const Text(
-            "Settings",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
 
-          const SizedBox(height: 12),
+                        Text(
+                          "Alex Johnson",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
 
-          /// 🛠️ SETTINGS LIST
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              children: [
-                SettingsTile(
-                  icon: Icons.person_outline,
-                  title: "Edit Profile",
-                  subtitle: "Update your personal information",
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-                ),
-                const Divider(height: 1, indent: 50),
-                SettingsTile(
-                  icon: Icons.notifications_none,
-                  title: "Notifications",
-                  subtitle: "Manage push notifications",
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen())),
-                ),
-                const Divider(height: 1, indent: 50),
-                SettingsTile(
-                  icon: Icons.lock_outline,
-                  title: "Privacy & Security",
-                  subtitle: "Password and security settings",
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacySecurityScreen())),
-                ),
-              ],
-            ),
-          ),
+                        SizedBox(height: 4),
 
-          const SizedBox(height: 16),
+                        Text(
+                          "alex_johnson@university.edu",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
 
-          /// 🌙 DARK MODE TOGGLE
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.dark_mode, color: Colors.blue),
-                const SizedBox(width: 12),
-                const Expanded(child: Text("Dark Mode")),
-                Switch(
-                  value: isDarkMode,
-                  activeColor: Colors.blue,
-                  onChanged: (v) {
-                    setState(() => isDarkMode = v);
-                  },
-                )
-              ],
-            ),
-          ),
+                        SizedBox(height: 6),
 
-          const SizedBox(height: 30),
+                        Text(
+                          "2023CS101 - Information Technology",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
 
-          /// 🚪 LOG OUT
-          OutlinedButton.icon(
-            onPressed: () {
-              // Redirects to Main Login and clears the stack
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text(
-              "Log Out",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.red),
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                        SizedBox(height: 2),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+
+            const SizedBox(height: 24),
+
+            const Text(
+              "Settings",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// SETTINGS LIST
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+
+                  /// EDIT PROFILE
+                  SettingsTile(
+                    icon: Icons.person_outline,
+                    title: "Edit Profile",
+                    subtitle: "Update your personal information",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const Divider(height: 1),
+
+                  /// NOTIFICATIONS
+                  SettingsTile(
+                    icon: Icons.notifications_none,
+                    title: "Notifications",
+                    subtitle: "Manage push notifications",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const NotificationSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const Divider(height: 1),
+
+                  /// PRIVACY
+                  SettingsTile(
+                    icon: Icons.lock_outline,
+                    title: "Privacy & Security",
+                    subtitle: "Password and security settings",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacySecurityScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            /// DARK MODE
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+
+                  const Icon(Icons.dark_mode, color: Colors.blue),
+
+                  const SizedBox(width: 12),
+
+                  const Expanded(child: Text("Dark Mode")),
+
+                  Switch(
+                    value: isDarkMode,
+                    onChanged: (v) {
+                      setState(() => isDarkMode = v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            /// LOGOUT
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label:
+                  const Text("Log Out", style: TextStyle(color: Colors.red)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.red),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// ✅ REUSABLE SETTINGS TILE
+////////////////////////////////////////////////////////////
+/// SETTINGS TILE
+////////////////////////////////////////////////////////////
+
 class SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -197,17 +298,10 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: Colors.blue, size: 20),
-      ),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: const Icon(Icons.chevron_right, size: 20),
+      leading: Icon(icon, color: Colors.blue),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
     );
   }

@@ -1,31 +1,43 @@
 import 'package:flutter/material.dart';
 
 class StudentDetailsScreen extends StatelessWidget {
-  final Map<String, String> student;
+  final Map<String, dynamic> student;
 
   const StudentDetailsScreen({super.key, required this.student});
 
   @override
   Widget build(BuildContext context) {
+    final Map<String, dynamic> internship = student["internship"] is Map
+        ? student["internship"]
+        : {};
+
+    final Map<String, dynamic> mentor = student["mentor"] is Map
+        ? student["mentor"]
+        : {};
+
+    /// Safe student name
+    final String name = (student["name"] ?? "Student").toString();
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(student["name"] ?? "Student Details"),
-      ),
+      appBar: AppBar(title: Text(name)),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
+
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            /// Student Avatar
+            /// Avatar
             Center(
               child: CircleAvatar(
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
                 child: Text(
-                  student["name"]![0],
+                  (name.isNotEmpty ? name[0] : "S").toUpperCase(),
                   style: const TextStyle(
-                      fontSize: 30, fontWeight: FontWeight.bold),
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -37,11 +49,12 @@ class StudentDetailsScreen extends StatelessWidget {
               "Student Information",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
-            _infoTile("Full Name", student["name"]),
-            _infoTile("Roll Number", student["roll"]),
-            _infoTile("Department", student["dept"]),
+            _infoTile("Full Name", name),
+            _infoTile("Roll Number", student["rollNumber"]),
+            _infoTile("Department", student["department"]),
             _infoTile("Year", student["year"]),
             _infoTile("Email", student["email"]),
             _infoTile("Phone", student["phone"]),
@@ -53,19 +66,18 @@ class StudentDetailsScreen extends StatelessWidget {
               "Internship Details",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
-            _infoTile("Company", student["company"]),
-            _infoTile("Role", student["role"]),
-            _infoTile("Type", student["type"]),
-            _infoTile("Start Date", student["start"]),
-            _infoTile("End Date", student["end"]),
+            _infoTile("Company", internship["company"]),
+            _infoTile("Role", internship["role"]),
+            _infoTile("Type", internship["type"]),
+            _infoTile("Start Date", internship["startDate"]),
+            _infoTile("End Date", internship["endDate"]),
 
-            /// Status with color
-            _statusTile("Status", student["status"]),
+            _statusTile("Status", internship["status"]),
 
-            /// Attendance
-            _infoTile("Attendance (%)", student["attendance"]),
+            _infoTile("Attendance (%)", internship["attendance"]),
 
             const SizedBox(height: 20),
 
@@ -74,18 +86,19 @@ class StudentDetailsScreen extends StatelessWidget {
               "Mentor Details",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
-            _infoTile("College Mentor", student["collegeMentor"]),
-            _infoTile("Company Mentor", student["companyMentor"]),
+            _infoTile("College Mentor", mentor["collegeMentor"]),
+            _infoTile("Company Mentor", mentor["companyMentor"]),
           ],
         ),
       ),
     );
   }
 
-  /// Normal Info Tile
-  Widget _infoTile(String title, String? value) {
+  /// Info Row
+  Widget _infoTile(String title, dynamic value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -97,29 +110,20 @@ class StudentDetailsScreen extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value ?? "-",
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
+
+          Expanded(flex: 3, child: Text(value?.toString() ?? "-")),
         ],
       ),
     );
   }
 
-  /// Status Tile with Color
-  Widget _statusTile(String title, String? status) {
-    Color statusColor = Colors.grey;
+  /// Status Row
+  Widget _statusTile(String title, dynamic status) {
+    Color color = Colors.grey;
 
-    if (status == "Active") {
-      statusColor = Colors.green;
-    } else if (status == "Completed") {
-      statusColor = Colors.blue;
-    } else if (status == "Pending") {
-      statusColor = Colors.red;
-    }
+    if (status == "Active") color = Colors.green;
+    if (status == "Completed") color = Colors.blue;
+    if (status == "Pending") color = Colors.red;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -132,14 +136,15 @@ class StudentDetailsScreen extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
+
           Expanded(
             flex: 3,
             child: Text(
-              status ?? "-",
+              status?.toString() ?? "-",
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: statusColor,
+                color: color,
               ),
             ),
           ),

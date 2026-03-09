@@ -10,14 +10,13 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController nameController =
-      TextEditingController(text: "Alex Johnson");
-  final TextEditingController emailController =
-      TextEditingController(text: "alex_johnson@university.edu");
-  final TextEditingController roleController =
-      TextEditingController(text: "Student");
-  final TextEditingController phoneController =
-      TextEditingController(text: "9876543210");
+  // Empty controllers - no pre-filled data
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController rollController = TextEditingController();
+  final TextEditingController departmentController = TextEditingController();
+  final TextEditingController yearController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +44,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
-
               // PROFILE AVATAR
               Center(
                 child: Stack(
@@ -53,11 +51,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const CircleAvatar(
                       radius: 48,
                       backgroundColor: Colors.redAccent,
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 48,
-                      ),
+                      child: Icon(Icons.person, color: Colors.white, size: 48),
                     ),
                     Positioned(
                       bottom: 0,
@@ -68,10 +62,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.camera_alt,
-                              color: Colors.white, size: 18),
+                          icon: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                           onPressed: () {
-                            // Image picker later
+                            // Image picker to be added later
                           },
                         ),
                       ),
@@ -93,12 +90,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
-                    )
+                    ),
                   ],
                 ),
                 child: Column(
                   children: [
-
                     _inputField(
                       controller: nameController,
                       label: "Full Name",
@@ -111,7 +107,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: emailController,
                       label: "Email",
                       icon: Icons.email_outlined,
-                      readOnly: true, // usually email is locked
+                      keyboardType: TextInputType.emailAddress,
                     ),
 
                     const SizedBox(height: 14),
@@ -126,10 +122,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 14),
 
                     _inputField(
-                      controller: roleController,
-                      label: "Role",
-                      icon: Icons.badge_outlined,
-                      readOnly: true,
+                      controller: rollController,
+                      label: "Roll Number",
+                      icon: Icons.confirmation_number_outlined,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    _inputField(
+                      controller: departmentController,
+                      label: "Department",
+                      icon: Icons.business_outlined,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    _inputField(
+                      controller: yearController,
+                      label: "Year of Study",
+                      icon: Icons.school_outlined,
+                      keyboardType: TextInputType.number,
                     ),
                   ],
                 ),
@@ -189,8 +201,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 12,
         ),
       ),
       validator: (value) {

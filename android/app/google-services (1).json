@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "584362757991",
+    "project_id": "intern-tracker-8bb5a",
+    "storage_bucket": "intern-tracker-8bb5a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:584362757991:android:e51819b7a7ae5cce0929c2",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVchMWuqLokzsS3tLhwbePnXSQ032QyCc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
