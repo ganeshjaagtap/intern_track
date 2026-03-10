@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_2/features/company_mentor/attendance/CompanyMentorAttendanceScreen.dart';
 
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 import 'MentorAttendanceScreen.dart';
@@ -291,7 +292,7 @@ class CompanyMentorDashboardScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) =>
-                        const CompanyMentorAttendanceScreen(),
+                        const TodayAttendanceScreen(),
                   ),
                 );
 

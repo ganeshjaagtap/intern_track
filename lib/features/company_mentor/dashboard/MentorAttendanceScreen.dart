@@ -270,7 +270,7 @@ class _CompanyMentorAttendanceScreenState
       ),
 
       bottomNavigationBar:
-          const CompanyMentorBottomBar(currentIndex: 0),
+          const CompanyMentorBottomBar(currentIndex: 2),
     );
   }
 
