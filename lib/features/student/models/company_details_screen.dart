@@ -68,7 +68,7 @@ class CompanyDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      companyData['description'] ?? 'No description available.',
+                      companyData['about'] ?? companyData['description'] ?? 'No description available.',
                       style: const TextStyle(fontSize: 15, height: 1.6),
                     ),
                   ),
