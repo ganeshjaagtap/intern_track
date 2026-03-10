@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SubmitReportScreen extends StatefulWidget {
   const SubmitReportScreen({Key? key}) : super(key: key);
@@ -21,6 +22,10 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   PlatformFile? selectedFile;
 
+  bool isSubmitting = false;
+
+  Map<String,dynamic>? studentData;
+
   final TextEditingController summaryCtrl = TextEditingController();
   final TextEditingController workDoneCtrl = TextEditingController();
   final TextEditingController learningCtrl = TextEditingController();
@@ -32,6 +37,27 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     "Week 7","Week 8","Week 9","Week 10","Week 11","Week 12",
     "Week 13","Week 14","Week 15","Week 16"
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    loadStudentData();
+  }
+
+  /// 🔹 Load student info from Firestore
+  Future<void> loadStudentData() async {
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection("user")
+        .doc(uid)
+        .get();
+
+    setState(() {
+      studentData = doc.data();
+    });
+  }
 
   Future<void> _pickDate(bool isFrom) async {
 
@@ -73,7 +99,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     }
   }
 
-  /// 🔹 SUBMIT REPORT → SAVE TO FIRESTORE
+  /// 🔹 Submit report to Firestore
   Future<void> _submitReport() async {
 
     if (!_formKey.currentState!.validate()) return;
@@ -87,22 +113,27 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       return;
     }
 
+    setState(() => isSubmitting = true);
+
     try {
+
+      final uid = FirebaseAuth.instance.currentUser!.uid;
 
       await FirebaseFirestore.instance.collection("reports").add({
 
-        "title": "$selectedWeek Progress Report",
+        "studentId": uid,
+        "studentName": studentData?["fullName"] ?? "",
+        "enrollmentNo": studentData?["enrollmentNo"] ?? "",
+        "department": studentData?["dept"] ?? "",
+        "role": studentData?["internshipRole"] ?? "",
 
+        "title": "$selectedWeek Progress Report",
         "reportType": reportType,
         "week": selectedWeek,
 
         "period":
             "${fromDate!.day}/${fromDate!.month}/${fromDate!.year} - "
             "${toDate!.day}/${toDate!.month}/${toDate!.year}",
-
-        "studentName": "Abhijeet Apare",
-        "department": "Computer Science",
-        "mentor": "Dr. Sharma",
 
         "summary": summaryCtrl.text,
         "workDone": workDoneCtrl.text,
@@ -129,13 +160,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         SnackBar(content: Text("Error: $e")),
       );
     }
-  }
 
-  void _saveDraft() {
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Draft saved")),
-    );
+    setState(() => isSubmitting = false);
   }
 
   @override
@@ -150,7 +176,10 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         title: const Text("SUBMIT REPORT"),
       ),
 
-      body: SingleChildScrollView(
+      body: studentData == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+
         padding: const EdgeInsets.all(16),
 
         child: Form(
@@ -166,11 +195,13 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
               _card(
                 Column(
-                  children: const [
-                    _infoRow("Name", "Abhijeet Apare"),
-                    _infoRow("Department", "Computer Science"),
-                    _infoRow("Role", "Flutter Developer Intern"),
-                    _infoRow("Mentor", "Dr. Sharma"),
+                  children: [
+
+                    _infoRow("Name", studentData!["fullName"] ?? "-"),
+                    _infoRow("Department", studentData!["dept"] ?? "-"),
+                    _infoRow("Role", studentData!["internshipRole"] ?? "-"),
+                    _infoRow("Enrollment No", studentData!["enrollmentNo"] ?? "-"),
+
                   ],
                 ),
               ),
@@ -186,29 +217,16 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
                     DropdownButtonFormField(
                       value: reportType,
-
                       items: const [
-
-                        DropdownMenuItem(
-                          value: "Weekly",
-                          child: Text("Weekly Report"),
-                        ),
-
-                        DropdownMenuItem(
-                          value: "Monthly",
-                          child: Text("Monthly Report"),
-                        ),
+                        DropdownMenuItem(value: "Weekly", child: Text("Weekly Report")),
+                        DropdownMenuItem(value: "Monthly", child: Text("Monthly Report")),
                       ],
-
-                      onChanged: (v){
-                        setState(() {
-                          reportType = v!;
-                        });
+                      onChanged:(v){
+                        setState(() => reportType = v!);
                       },
-
                       decoration: const InputDecoration(
-                        labelText: "Report Type",
-                        border: OutlineInputBorder(),
+                        labelText:"Report Type",
+                        border:OutlineInputBorder(),
                       ),
                     ),
 
@@ -217,23 +235,16 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                     if(reportType=="Weekly")
 
                       DropdownButtonFormField(
-                        value: selectedWeek,
-
-                        items: weeks.map((w){
-
+                        value:selectedWeek,
+                        items:weeks.map((w){
                           return DropdownMenuItem(
-                            value: w,
-                            child: Text(w),
+                            value:w,
+                            child:Text(w),
                           );
-
                         }).toList(),
-
                         onChanged:(v){
-                          setState(() {
-                            selectedWeek=v!;
-                          });
+                          setState(()=>selectedWeek=v!);
                         },
-
                         decoration: const InputDecoration(
                           labelText:"Week",
                           border:OutlineInputBorder(),
@@ -253,20 +264,20 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                   children: [
 
                     Expanded(
-                      child: _dateField(
-                        label: "From Date",
-                        value: fromDate,
-                        onTap: () => _pickDate(true),
+                      child:_dateField(
+                        label:"From Date",
+                        value:fromDate,
+                        onTap:()=>_pickDate(true),
                       ),
                     ),
 
                     const SizedBox(width:12),
 
                     Expanded(
-                      child: _dateField(
-                        label: "To Date",
-                        value: toDate,
-                        onTap: () => _pickDate(false),
+                      child:_dateField(
+                        label:"To Date",
+                        value:toDate,
+                        onTap:()=>_pickDate(false),
                       ),
                     ),
                   ],
@@ -315,25 +326,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
                     InkWell(
                       onTap:_pickFile,
-
-                      child: Container(
+                      child:Container(
                         width:double.infinity,
                         padding: const EdgeInsets.symmetric(vertical:25),
-
-                        decoration: BoxDecoration(
+                        decoration:BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue),
+                          border:Border.all(color: Colors.blue),
                         ),
-
                         child: const Column(
-                          children: [
-
-                            Icon(Icons.upload_file,
-                                color: Colors.blue,
-                                size: 40),
-
+                          children:[
+                            Icon(Icons.upload_file,color:Colors.blue,size:40),
                             SizedBox(height:5),
-
                             Text("Tap to upload file"),
                           ],
                         ),
@@ -351,32 +354,18 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
               const SizedBox(height:25),
 
-              Row(
-                children: [
-
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed:_saveDraft,
-                      child: const Text("Save Draft"),
-                    ),
+              SizedBox(
+                width:double.infinity,
+                child:ElevatedButton(
+                  style:ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6BB6FF),
+                    foregroundColor: Colors.white,
                   ),
-
-                  const SizedBox(width:12),
-
-                  Expanded(
-                    child: ElevatedButton(
-
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6BB6FF),
-                        foregroundColor: Colors.white,
-                      ),
-
-                      onPressed:_submitReport,
-
-                      child: const Text("Submit Report"),
-                    ),
-                  ),
-                ],
+                  onPressed:isSubmitting ? null : _submitReport,
+                  child:isSubmitting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Submit Report"),
+                ),
               ),
 
               const SizedBox(height:30),
@@ -388,10 +377,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   }
 
   Widget _sectionTitle(String text){
-
     return Padding(
       padding: const EdgeInsets.only(bottom:8),
-
       child: Text(
         text,
         style: const TextStyle(
@@ -403,16 +390,13 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   }
 
   Widget _card(Widget child){
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-
       child: child,
     );
   }
@@ -422,22 +406,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     required DateTime? value,
     required VoidCallback onTap,
   }){
-
     return InkWell(
-
-      onTap: onTap,
-
-      child: InputDecorator(
-
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
+      onTap:onTap,
+      child:InputDecorator(
+        decoration:InputDecoration(
+          labelText:label,
+          border:const OutlineInputBorder(),
         ),
-
-        child: Text(
-          value == null
-              ? "Select date"
-              : "${value.day}/${value.month}/${value.year}",
+        child:Text(
+          value==null
+              ?"Select date"
+              :"${value.day}/${value.month}/${value.year}",
         ),
       ),
     );
@@ -450,17 +429,13 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       [int maxLines = 2]){
 
     return TextFormField(
-
-      controller: controller,
-
-      maxLines: maxLines,
-
+      controller:controller,
+      maxLines:maxLines,
       validator:(v)=> v==null || v.isEmpty ? "Required field" : null,
-
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: const OutlineInputBorder(),
+      decoration:InputDecoration(
+        labelText:label,
+        hintText:hint,
+        border:const OutlineInputBorder(),
       ),
     );
   }
@@ -478,7 +453,6 @@ class _infoRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical:6),
-
       child: Row(
         children: [
 

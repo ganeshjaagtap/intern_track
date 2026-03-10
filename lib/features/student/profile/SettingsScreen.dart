@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter_application_2/features/student/profile/NotificationSettingScreen.dart';
 
 import '../auth/Main_Login.dart';
-
 import 'EditProfileScreen.dart';
 import 'PrivacySecurityScreen.dart';
 
@@ -40,6 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
 
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
 
@@ -67,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
               ),
+
               child: Row(
                 children: [
 
@@ -88,7 +93,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
 
-                      /// CAMERA ICON
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -110,38 +114,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(width: 12),
 
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  /// FIREBASE PROFILE DATA
+                  Expanded(
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection("user")
+                          .doc(uid)
+                          .snapshots(),
 
-                        Text(
-                          "Alex Johnson",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                      builder: (context, snapshot) {
 
-                        SizedBox(height: 4),
+                        if (!snapshot.hasData) {
+                          return const CircularProgressIndicator();
+                        }
 
-                        Text(
-                          "alex_johnson@university.edu",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
+                        final data =
+                            snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-                        SizedBox(height: 6),
+                        final name = data["fullName"] ?? "Student";
+                        final email = data["email"] ?? "";
+                        final enrollment = data["enrollmentNo"] ?? "";
+                        final dept = data["dept"] ?? "";
 
-                        Text(
-                          "2023CS101 - Information Technology",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
 
-                        SizedBox(height: 2),
-                      ],
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Text(
+                              email,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text(
+                              "$enrollment - $dept",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -253,15 +281,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             /// LOGOUT
             OutlinedButton.icon(
               onPressed: () {
+
+                FirebaseAuth.instance.signOut();
+
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (route) => false,
                 );
               },
+
               icon: const Icon(Icons.logout, color: Colors.red),
+
               label:
                   const Text("Log Out", style: TextStyle(color: Colors.red)),
+
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
                 minimumSize: const Size(double.infinity, 48),
@@ -297,6 +331,7 @@ class SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return ListTile(
       leading: Icon(icon, color: Colors.blue),
       title: Text(title),

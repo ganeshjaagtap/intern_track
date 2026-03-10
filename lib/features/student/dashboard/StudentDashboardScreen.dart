@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter_application_2/features/interns/screens/InternshipDetailsScreen.dart';
 import 'package:flutter_application_2/features/interns/screens/InternshipbriefDetail.dart';
 import 'package:flutter_application_2/features/student/models/company_details_screen.dart';
@@ -27,7 +30,7 @@ class StudentDashboardScreen extends StatelessWidget {
       "industry": "Cloud Engineering",
       "email": "hr@google.com",
       "description":
-          "Google's mission is to organize the world's information and make it universally accessible.",
+          "Google's mission is to organize the world's information.",
       "website": "www.google.com",
     },
     {
@@ -36,7 +39,7 @@ class StudentDashboardScreen extends StatelessWidget {
       "industry": "Backend Development",
       "email": "jobs@amazon.com",
       "description":
-          "Amazon focuses on customer obsession, innovation and long-term thinking.",
+          "Amazon focuses on customer obsession and innovation.",
       "website": "www.amazon.com",
     },
   ];
@@ -75,21 +78,12 @@ class StudentDashboardScreen extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 32,
-                backgroundImage: member.photoUrl != null
-                    ? NetworkImage(member.photoUrl!)
-                    : null,
-                child: member.photoUrl == null
-                    ? Text(
-                        _initials(member.name),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      )
-                    : null,
+                child: Text(_initials(member.name)),
               ),
               const SizedBox(height: 12),
               Text(
                 member.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text("Enrollment: ${member.enrollmentNumber}"),
@@ -110,17 +104,17 @@ class StudentDashboardScreen extends StatelessWidget {
 
   String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return "U";
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return "${parts[0][0]}${parts[1][0]}".toUpperCase();
+    if (parts.length == 1) return parts.first[0];
+    return "${parts[0][0]}${parts[1][0]}";
   }
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
 
-      /// APP BAR
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BB6FF),
         elevation: 0,
@@ -144,296 +138,293 @@ class StudentDashboardScreen extends StatelessWidget {
       ),
 
       /// BODY
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Siddhika Deshmukh",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-            ),
-            const Text("Intern at Microsoft"),
-            const SizedBox(height: 16),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("user")
+            .doc(uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String name = "Student";
+          String company = "Company";
 
-            /// DEADLINE ALERT
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD6D6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber, color: Colors.red),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Deadline in 3 days",
+          if (snapshot.hasData && snapshot.data!.data() != null) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            name = data["fullName"] ?? "Student";
+            company = data["company"] ?? "Company";
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                /// 🔹 DYNAMIC NAME + COMPANY
+                Text(
+                  name,
+                  style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold),
+                ),
+
+                Text("Intern at $company"),
+
+                const SizedBox(height: 16),
+
+                /// DEADLINE ALERT
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD6D6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber, color: Colors.red),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "Week report submission pending",
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          "Week 8 progress report is due soon",
-                          style: TextStyle(fontSize: 12),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
                         ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SubmitReportScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text("Submit"),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            /// STATS
-            Row(
-              children: [
-                 Expanded(
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const InternshipBriefDetailsScreen(),
-            ),
-          );
-        },
-        child: const MiniStatCard(
-          icon: Icons.bar_chart,
-          value: "1",
-          label: "Active",
-          bg: Color(0xFFD9ECFF),
-          iconColor: Colors.blue,
-        ),
-      ),
-    ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => StudentTaskScreen()),
-                      );
-                    },
-                    child: MiniStatCard(
-                      icon: Icons.task_alt,
-                      value: "7",
-                      label: "Tasks",
-                      bg: Color(0xFFE8E4FF),
-                      iconColor: Colors.deepPurple,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InternshipBriefDetailsScreen(),
-                        ),
-                      );
-                    },
-
-                    child: MiniStatCard(
-                      icon: Icons.access_time,
-                      value: "45/120",
-                      label: "Days Completed",
-                      bg: Color(0xFFFFE6D9),
-                      iconColor: Colors.deepOrange,
-                    ),
-                  ),
-                ),
-                  SizedBox(width: 12),
-                  Expanded(
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ReportScreen(),
-            ),
-          );
-        },
-        child: const MiniStatCard(
-          icon: Icons.description,
-          value: "7",
-          label: "Reports",
-          bg: Color(0xFFFFF2CC),
-          iconColor: Colors.orange,
-        ),
-      ),
-                  ),
-                
-              ],
-            ),
-
-            const SizedBox(height: 22),
-
-            /// INTERNSHIP SECTION
-            const Text(
-              "Internship Progress",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            DefaultTabController(
-              length: 3,
-              child: Column(
-                children: [
-                  const TabBar(
-                    labelColor: Colors.blue,
-                    unselectedLabelColor: Colors.grey,
-                    tabs: [
-                      Tab(text: "Companies"),
-                      Tab(text: "My Progress"),
-                      Tab(text: "My Group"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const SubmitReportScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text("Submit"),
+                      ),
                     ],
                   ),
+                ),
 
-                  const SizedBox(height: 10),
+                const SizedBox(height: 18),
 
-                  SizedBox(
-                    height: 220,
-                    child: TabBarView(
-                      children: [
-                        /// COMPANY LIST
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListView.builder(
-                            itemCount: companies.length,
-                            itemBuilder: (context, index) {
-                              final company = companies[index];
+                /// STATS
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const InternshipBriefDetailsScreen(),
+                            ),
+                          );
+                        },
+                        child: const MiniStatCard(
+                          icon: Icons.bar_chart,
+                          value: "1",
+                          label: "Active",
+                          bg: Color(0xFFD9ECFF),
+                          iconColor: Colors.blue,
+                        ),
+                      ),
+                    ),
 
-                              return ListTile(
-                                leading: const Icon(Icons.business),
-                                title: Text(company["name"]),
-                                subtitle: Text(company["industry"]),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => CompanyDetailScreen(
-                                        companyData: company,
-                                      ),
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => StudentTaskScreen()),
+                          );
+                        },
+                        child: const MiniStatCard(
+                          icon: Icons.task_alt,
+                          value: "7",
+                          label: "Tasks",
+                          bg: Color(0xFFE8E4FF),
+                          iconColor: Colors.deepPurple,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: const MiniStatCard(
+                        icon: Icons.access_time,
+                        value: "45/120",
+                        label: "Days Completed",
+                        bg: Color(0xFFFFE6D9),
+                        iconColor: Colors.deepOrange,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ReportScreen()),
+                          );
+                        },
+                        child: const MiniStatCard(
+                          icon: Icons.description,
+                          value: "7",
+                          label: "Reports",
+                          bg: Color(0xFFFFF2CC),
+                          iconColor: Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+
+                const Text(
+                  "Internship Progress",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 10),
+
+                DefaultTabController(
+                  length: 3,
+                  child: Column(
+                    children: [
+
+                      const TabBar(
+                        labelColor: Colors.blue,
+                        unselectedLabelColor: Colors.grey,
+                        tabs: [
+                          Tab(text: "Companies"),
+                          Tab(text: "My Progress"),
+                          Tab(text: "My Group"),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        height: 220,
+                        child: TabBarView(
+                          children: [
+
+                            /// COMPANY LIST
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListView.builder(
+                                itemCount: companies.length,
+                                itemBuilder: (context, index) {
+                                  final company = companies[index];
+
+                                  return ListTile(
+                                    leading: const Icon(Icons.business),
+                                    title: Text(company["name"]),
+                                    subtitle: Text(company["industry"]),
+                                    trailing: const Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 16,
                                     ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              CompanyDetailScreen(
+                                                  companyData: company),
+                                        ),
+                                      );
+                                    },
                                   );
                                 },
-                              );
-                            },
-                          ),
-                        ),
-
-                        /// PROGRESS VIEW
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Frontend Developer Intern",
-                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                "Microsoft",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              LinearProgressIndicator(
-                                value: 0.65,
-                                backgroundColor: Colors.grey.shade300,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.teal,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Text("65% Internship Completed"),
-                            ],
-                          ),
-                        ),
+                            ),
 
-                        /// GROUP VIEW
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListView.builder(
-                            itemCount: groupMembers.length,
-                            itemBuilder: (context, index) {
-                              final member = groupMembers[index];
+                            /// PROGRESS
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: const [
+                                  Text(
+                                    "Flutter Developer Intern",
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "Techsurya IT Solutions",
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey),
+                                  ),
+                                  SizedBox(height: 14),
+                                  LinearProgressIndicator(value: 0.65),
+                                  SizedBox(height: 10),
+                                  Text("65% Internship Completed"),
+                                ],
+                              ),
+                            ),
 
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundImage: member.photoUrl != null
-                                      ? NetworkImage(member.photoUrl!)
-                                      : null,
-                                  child: member.photoUrl == null
-                                      ? Text(_initials(member.name))
-                                      : null,
-                                ),
-                                title: Text(member.name),
-                                subtitle: Text(member.projectRole),
-                                onTap: () =>
-                                    _showGroupMemberDialog(context, member),
-                              );
-                            },
-                          ),
+                            /// GROUP
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListView.builder(
+                                itemCount: groupMembers.length,
+                                itemBuilder: (context, index) {
+                                  final member = groupMembers[index];
+
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      child: Text(_initials(member.name)),
+                                    ),
+                                    title: Text(member.name),
+                                    subtitle: Text(member.projectRole),
+                                    onTap: () =>
+                                        _showGroupMemberDialog(context, member),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            const SizedBox(height: 60),
-          ],
-        ),
+                const SizedBox(height: 60),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -443,19 +434,13 @@ class GroupMember {
   final String name;
   final String enrollmentNumber;
   final String projectRole;
-  final String? photoUrl;
 
   const GroupMember({
     required this.name,
     required this.enrollmentNumber,
     required this.projectRole,
-    this.photoUrl,
   });
 }
-
-////////////////////////////////////////////////////////////
-/// MINI STAT CARD
-////////////////////////////////////////////////////////////
 
 class MiniStatCard extends StatelessWidget {
   final IconData icon;

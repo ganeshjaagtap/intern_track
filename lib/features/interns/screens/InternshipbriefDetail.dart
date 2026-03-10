@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class InternshipBriefDetailsScreen extends StatelessWidget {
   const InternshipBriefDetailsScreen({super.key});
@@ -10,6 +12,9 @@ class InternshipBriefDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
 
@@ -23,96 +28,153 @@ class InternshipBriefDetailsScreen extends StatelessWidget {
         ),
       ),
 
-      body: Column(
-        children: [
+      body: StreamBuilder<DocumentSnapshot>(
 
-          // Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: const BoxDecoration(
-              color: coolSky,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(26),
-                bottomRight: Radius.circular(26),
-              ),
-            ),
-            child: const Column(
-              children: [
-                Icon(Icons.work_outline, size: 40, color: Colors.white),
-                SizedBox(height: 8),
-                Text(
-                  "TCS Internship",
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Flutter Developer",
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
+        stream: FirebaseFirestore.instance
+            .collection("user")
+            .doc(uid)
+            .snapshots(),
 
-          const SizedBox(height: 20),
+        builder: (context, snapshot) {
 
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                  _detailCard(Icons.person, "Student", "Aman Patel"),
-                  _detailCard(Icons.business, "Company", "TCS"),
-                  _detailCard(Icons.code, "Role", "Flutter Developer"),
-                  _detailCard(Icons.schedule, "Duration", "6 Months"),
+          final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
-                  const SizedBox(height: 20),
+          final studentName = data["fullName"] ?? "Student";
+          final company = data["company"] ?? "-";
+          final role = data["internshipRole"] ?? "-";
+          final status = data["internshipStatus"] ?? "-";
 
-                  // Status badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: aquamarine,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.white, size: 18),
-                        SizedBox(width: 6),
-                        Text(
-                          "Ongoing",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
+          final start = data["startDate"];
+          final end = data["endDate"];
+
+          String duration = "-";
+
+          if (start != null && end != null) {
+            final startDate = (start as Timestamp).toDate();
+            final endDate = (end as Timestamp).toDate();
+            duration =
+                "${startDate.day}/${startDate.month}/${startDate.year} - ${endDate.day}/${endDate.month}/${endDate.year}";
+          }
+
+          return Column(
+            children: [
+
+              /// HEADER
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: const BoxDecoration(
+                  color: coolSky,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(26),
+                    bottomRight: Radius.circular(26),
                   ),
+                ),
 
-                  const Spacer(),
-                ],
+                child: Column(
+                  children: [
+
+                    const Icon(Icons.work_outline,
+                        size: 40, color: Colors.white),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      company,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      role,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+
+              const SizedBox(height: 20),
+
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+
+                  child: Column(
+                    children: [
+
+                      _detailCard(Icons.person, "Student", studentName),
+
+                      _detailCard(Icons.business, "Company", company),
+
+                      _detailCard(Icons.code, "Role", role),
+
+                      _detailCard(Icons.schedule, "Duration", duration),
+
+                      const SizedBox(height: 20),
+
+                      /// STATUS BADGE
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 10),
+
+                        decoration: BoxDecoration(
+                          color: aquamarine,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+
+                            const Icon(Icons.check_circle,
+                                color: Colors.white, size: 18),
+
+                            const SizedBox(width: 6),
+
+                            Text(
+                              status,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Spacer(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
+  /// DETAIL CARD
   Widget _detailCard(IconData icon, String title, String value) {
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: jasmine,
         borderRadius: BorderRadius.circular(16),
       ),
+
       child: Row(
         children: [
 

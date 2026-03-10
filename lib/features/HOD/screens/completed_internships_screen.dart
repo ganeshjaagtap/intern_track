@@ -1,90 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'completed_internship_details_screen.dart';
 
 class CompletedInternshipsScreen extends StatelessWidget {
   const CompletedInternshipsScreen({super.key});
 
-  final List<Map<String, String>> students = const [
-    {
-      "name": "Aditya Verma",
-      "roll": "237032",
-      "dept": "IoT",
-      "year": "3rd Year",
-      "company": "Infosys",
-      "role": "Flutter Developer",
-      "type": "Hybrid",
-      "start": "1 Jan 2026",
-      "end": "31 Mar 2026",
-      "attendance": "92%",
-      "tasks": "12",
-      "feedback": "Excellent",
-      "grade": "A",
-      "status": "Completed",
-      "certificate": "Uploaded",
-      "collegeMentor": "Dr. Kundlikar",
-      "companyMentor": "Mr. Sharma"
-    },
-    {
-      "name": "Sanya Malhotra",
-      "roll": "237033",
-      "dept": "IoT",
-      "year": "3rd Year",
-      "company": "TCS",
-      "role": "Web Developer",
-      "type": "Remote",
-      "start": "10 Jan 2026",
-      "end": "10 Apr 2026",
-      "attendance": "88%",
-      "tasks": "10",
-      "feedback": "Very Good",
-      "grade": "B+",
-      "status": "Completed",
-      "certificate": "Uploaded",
-      "collegeMentor": "Dr. Kundlikar",
-      "companyMentor": "Mr. Singh"
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Completed Internships"),
       ),
-      body: ListView.builder(
-        itemCount: students.length,
-        itemBuilder: (context, index) {
 
-          final student = students[index];
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("user")
+            .where("internshipStatus", isEqualTo: "Completed")
+            .snapshots(),
 
-          return Card(
-            margin: const EdgeInsets.all(10),
-            child: ListTile(
-              leading: CircleAvatar(
-                child: Text(student["name"]![0]),
-              ),
+        builder: (context, snapshot) {
 
-              title: Text(student["name"]!),
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              subtitle: Text(
-                "${student["company"]} • ${student["role"]}",
-              ),
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No Completed Internships"));
+          }
 
-              trailing: const Text(
-                "Completed",
-                style: TextStyle(color: Colors.green),
-              ),
+          final students = snapshot.data!.docs;
 
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CompletedInternshipDetailsScreen(student: student),
+          return ListView.builder(
+            itemCount: students.length,
+
+            itemBuilder: (context, index) {
+
+              final student =
+                  students[index].data() as Map<String, dynamic>;
+
+              final name = student["fullName"] ?? "Student";
+              final company = student["company"] ?? "-";
+              final role = student["internshipRole"] ?? "-";
+
+              return Card(
+                margin: const EdgeInsets.all(10),
+
+                child: ListTile(
+
+                  leading: CircleAvatar(
+                    child: Text(name.toString()[0]),
                   ),
-                );
-              },
-            ),
+
+                  title: Text(name),
+
+                  subtitle: Text("$company • $role"),
+
+                  trailing: const Text(
+                    "Completed",
+                    style: TextStyle(color: Colors.green),
+                  ),
+
+                  onTap: () {
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            CompletedInternshipDetailsScreen(
+                                student: student),
+                      ),
+                    );
+
+                  },
+                ),
+              );
+            },
           );
         },
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_2/university_mentor/screens/report/hod_student_list_screen.dart';
 import 'student_list_screen.dart';
 import 'active_internships_screen.dart';
 import 'completed_internships_screen.dart';
@@ -231,14 +232,23 @@ class _QuickActions extends StatelessWidget {
                 builder: (context) => const ReviewApprovalsScreen()),
           ),
         ),
-        const MentorActionTile(
-          icon: Icons.bar_chart_rounded,
-          title: "View Reports",
-        ),
-        const MentorActionTile(
-          icon: Icons.chat_bubble_outline,
-          title: "Message Students",
-        ),
+        MentorActionTile(
+  icon: Icons.bar_chart_rounded,
+  title: "View Reports",
+
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HodStudentListScreen(),
+      ),
+    );
+  },
+),
+       // const MentorActionTile(
+       //   icon: Icons.chat_bubble_outline,
+       //   title: "Message Students",
+      //  ),
       ],
     );
   }
@@ -247,20 +257,44 @@ class _QuickActions extends StatelessWidget {
 class MentorActionTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
-  const MentorActionTile(
-      {super.key, required this.icon, required this.title, this.onTap});
+  const MentorActionTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-        onTap: onTap,
+    return GestureDetector(
+      onTap: onTap,
+
+      child: Container(
+        padding: const EdgeInsets.all(16),
+
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+
+        child: Row(
+          children: [
+
+            Icon(icon, size: 28, color: Colors.blue),
+
+            const SizedBox(width: 12),
+
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

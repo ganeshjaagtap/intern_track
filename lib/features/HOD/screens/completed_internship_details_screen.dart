@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 
 class CompletedInternshipDetailsScreen extends StatelessWidget {
 
-  final Map<String, String> student;
+  final Map<String, dynamic> student;
 
-  const CompletedInternshipDetailsScreen({super.key, required this.student});
+  const CompletedInternshipDetailsScreen({
+    super.key,
+    required this.student,
+  });
 
   @override
   Widget build(BuildContext context) {
 
+    final name = student["fullName"] ?? "Student";
+
     return Scaffold(
+
       appBar: AppBar(
-        title: Text(student["name"] ?? "Internship Details"),
+        title: Text(name),
       ),
 
       body: SingleChildScrollView(
@@ -27,7 +33,9 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
                 child: Text(
-                  student["name"]![0],
+                  name.toString().isNotEmpty
+                      ? name.toString()[0]
+                      : "S",
                   style: const TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
@@ -43,10 +51,11 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               "Student Information",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
-            _infoTile("Name", student["name"]),
-            _infoTile("Roll Number", student["roll"]),
+            _infoTile("Name", student["fullName"]),
+            _infoTile("Enrollment No", student["enrollmentNo"]),
             _infoTile("Department", student["dept"]),
             _infoTile("Year", student["year"]),
 
@@ -57,13 +66,14 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               "Internship Details",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
             _infoTile("Company", student["company"]),
-            _infoTile("Role", student["role"]),
-            _infoTile("Type", student["type"]),
-            _infoTile("Start Date", student["start"]),
-            _infoTile("End Date", student["end"]),
+            _infoTile("Role", student["internshipRole"]),
+            _infoTile("Type", student["internshipType"]),
+            _infoTile("Start Date", student["startDate"]),
+            _infoTile("End Date", student["endDate"]),
 
             const SizedBox(height: 20),
 
@@ -72,6 +82,7 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               "Performance Details",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
             _infoTile("Attendance", student["attendance"]),
@@ -86,9 +97,10 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               "Internship Status",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
-            _infoTile("Status", student["status"]),
+            _infoTile("Status", student["internshipStatus"]),
             _infoTile("Certificate", student["certificate"]),
 
             const SizedBox(height: 20),
@@ -98,6 +110,7 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               "Mentor Details",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
             const Divider(),
 
             _infoTile("College Mentor", student["collegeMentor"]),
@@ -111,7 +124,15 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Certificate download coming soon"),
+                        ),
+                      );
+
+                    },
                     child: const Text("Download Certificate"),
                   ),
                 ),
@@ -120,7 +141,15 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("View report feature coming soon"),
+                        ),
+                      );
+
+                    },
                     child: const Text("View Report"),
                   ),
                 ),
@@ -132,7 +161,8 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoTile(String title, String? value) {
+  Widget _infoTile(String title, dynamic value) {
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
 
@@ -149,7 +179,7 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
           Expanded(
             flex: 3,
-            child: Text(value ?? "-"),
+            child: Text(value?.toString() ?? "-"),
           ),
         ],
       ),
