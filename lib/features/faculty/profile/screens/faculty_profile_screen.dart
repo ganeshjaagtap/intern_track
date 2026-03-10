@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 import 'package:flutter_application_2/features/student/profile/EditProfileScreen.dart';
@@ -108,39 +110,73 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
 
                   const SizedBox(width: 12),
 
-                  /// FACULTY INFO
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  /// FACULTY INFO - DYNAMIC DATA FROM DATABASE
+                  Expanded(
+                    child: FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('user')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
 
-                        Text(
-                          "Dr. John Smith",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
+                          return const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Faculty Info",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
 
-                        SizedBox(height: 4),
+                        final data = snapshot.data!.data() as Map<String, dynamic>;
+                        final name = data['name'] ?? 'N/A';
+                        final email = data['email'] ?? 'N/A';
+                        final designation = data['designation'] ?? 'N/A';
 
-                        Text(
-                          "john.smith@university.edu",
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey),
-                        ),
-
-                        SizedBox(height: 6),
-
-                        Text(
-                          "Associate Professor - Computer Science",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              email,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              designation,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
