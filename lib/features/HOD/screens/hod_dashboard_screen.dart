@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_2/university_mentor/screens/report/hod_student_list_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/report/hod_student_list_screen.dart';
 import 'student_list_screen.dart';
 import 'active_internships_screen.dart';
 import 'completed_internships_screen.dart';
