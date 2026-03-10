@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_2/core/utils/mentor_emails.dart';
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/features/HOD/layout/mentor_main_layout.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_application_2/features/student/auth/CreateAccountScreen.dart';
 
@@ -160,6 +161,14 @@ class _LoginScreenState extends State<LoginScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MentorMainLayout()),
+      );
+      return;
+    }
+
+    if (role == 'faculty') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const FacultyDashboardScreen()),
       );
       return;
     }

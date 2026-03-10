@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for role check
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/features/HOD/layout/mentor_main_layout.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 
@@ -54,7 +55,9 @@ class MyApp extends StatelessWidget {
                 final data = roleSnapshot.data!.data() as Map<String, dynamic>;
                 final String role = (data['role'] ?? 'student').toString().toLowerCase();
 
-                if (role == 'mentor' || role == 'university_mentor') {
+                if (role == 'faculty') {
+                  return const FacultyDashboardScreen();
+                } else if (role == 'mentor' || role == 'university_mentor') {
                   return const MentorMainLayout();
                 }
 
