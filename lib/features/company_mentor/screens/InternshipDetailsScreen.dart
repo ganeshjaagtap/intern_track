@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../models/student_draft.dart';
+import '../../../models/student_draft.dart';
 
 class InternshipDetailsScreen extends StatefulWidget {
   const InternshipDetailsScreen({super.key});

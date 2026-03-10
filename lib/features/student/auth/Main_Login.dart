@@ -5,6 +5,7 @@ import 'package:flutter_application_2/core/utils/mentor_emails.dart';
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/features/HOD/layout/mentor_main_layout.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
+import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_application_2/features/student/auth/CreateAccountScreen.dart';
 
@@ -155,9 +156,8 @@ class _LoginScreenState extends State<LoginScreen>
   void _routeByRole(String role, String email) {
     email = email.toLowerCase();
 
-    if (mentorEmails.contains(email) ||
-        role == 'mentor' ||
-        role == 'university_mentor') {
+    // HOD / college mentors use MentorMainLayout
+    if (mentorEmails.contains(email) || role == 'hod') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MentorMainLayout()),
@@ -165,6 +165,16 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
+    // Company mentors have role "mentor" in Firestore
+    if (role == 'mentor') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CompanyMentorDashboardScreen()),
+      );
+      return;
+    }
+
+    // Faculty users
     if (role == 'faculty') {
       Navigator.pushReplacement(
         context,
@@ -173,6 +183,7 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
+    // Students
     if (role == 'student') {
       Navigator.pushReplacement(
         context,
