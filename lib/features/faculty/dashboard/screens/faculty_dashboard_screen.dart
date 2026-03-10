@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/company_list_screen.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_notification_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/student_list.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/widgets/Faculty_action_card.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/widgets/faculty_stats_card.dart';
@@ -9,7 +11,6 @@ import 'package:flutter_application_2/features/faculty/calendar/faculty_calendar
 import 'package:flutter_application_2/features/faculty/groups/groups_screen.dart';
 import 'package:flutter_application_2/features/faculty/profile/screens/faculty_profile_screen.dart';
 import 'package:flutter_application_2/features/faculty/tasks/assign_tasks_screen.dart';
-import 'package:flutter_application_2/features/student/profile/NotificationScreen.dart';
 
 class FacultyDashboardScreen extends StatefulWidget {
   const FacultyDashboardScreen({super.key});
@@ -20,6 +21,7 @@ class FacultyDashboardScreen extends StatefulWidget {
 }
 
 class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
+
   int _selectedIndex = 0;
 
   void _onTabSelected(int index) {
@@ -65,50 +67,71 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
           "INTERN TRACKER",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+
         actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationScreen(),
-                    ),
-                  );
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
+
+          /// 🔔 REALTIME NOTIFICATION BADGE
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("notifications")
+                .snapshots(),
+
+            builder: (context, snapshot) {
+
+              int count = 0;
+
+              if (snapshot.hasData) {
+                count = snapshot.data!.docs.length;
+              }
+
+              return Stack(
+                children: [
+
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const FacultyNotificationScreen(),
+                        ),
+                      );
+                    },
                   ),
-                  child: const Center(
-                    child: Text(
-                      "3",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+
+                  /// 🔴 BADGE
+                  if (count > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          count.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ],
-          )
+                ],
+              );
+            },
+          ),
         ],
       ),
 
       /// BODY
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
+
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -116,8 +139,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             const Text(
               "Welcome back, Faculty!",
               style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
 
             const SizedBox(height: 18),
@@ -125,6 +149,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             /// STATS
             Row(
               children: [
+
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -132,7 +157,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const StudentListScreen(),
+                          builder: (context) =>
+                              const StudentListScreen(),
                         ),
                       );
                     },
@@ -145,7 +171,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -153,7 +181,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const CompaniesScreen(),
+                          builder: (context) =>
+                              const CompaniesScreen(),
                         ),
                       );
                     },
@@ -173,6 +202,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
             Row(
               children: [
+
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -180,7 +210,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AssignTaskScreen(),
+                          builder: (context) =>
+                              const AssignTaskScreen(),
                         ),
                       );
                     },
@@ -193,7 +224,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     ),
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -201,7 +234,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AssignTaskScreen(),
+                          builder: (context) =>
+                              const AssignTaskScreen(),
                         ),
                       );
                     },
@@ -248,12 +282,15 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AssignTaskScreen(),
+                    builder: (context) =>
+                        const AssignTaskScreen(),
                   ),
                 );
               },
+
               child: Container(
                 padding: const EdgeInsets.all(18),
+
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [
@@ -261,7 +298,9 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Color(0xFF5EF2D5),
                     ],
                   ),
+
                   borderRadius: BorderRadius.circular(16),
+
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.08),
@@ -270,15 +309,18 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                     )
                   ],
                 ),
+
                 child: Row(
                   children: [
 
                     Container(
                       padding: const EdgeInsets.all(10),
+
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
+
                       child: const Icon(
                         Icons.assignment_add,
                         color: Color(0xFF60B5FF),
