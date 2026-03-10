@@ -156,11 +156,11 @@ class _LoginScreenState extends State<LoginScreen>
   void _routeByRole(String role, String email) {
     email = email.toLowerCase();
 
-    // HOD / college mentors use MentorMainLayout
+    // HOD / college mentors use HodMainLayout
     if (mentorEmails.contains(email) || role == 'hod') {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MentorMainLayout()),
+        MaterialPageRoute(builder: (_) => const HodMainLayout()),
       );
       return;
     }

@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for role check
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/features/HOD/layout/mentor_main_layout.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
+import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
+import 'package:flutter_application_2/core/utils/mentor_emails.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 
@@ -54,11 +56,14 @@ class MyApp extends StatelessWidget {
               if (roleSnapshot.hasData && roleSnapshot.data!.exists) {
                 final data = roleSnapshot.data!.data() as Map<String, dynamic>;
                 final String role = (data['role'] ?? 'student').toString().toLowerCase();
+                final String email = (user.email ?? '').toLowerCase();
 
                 if (role == 'faculty') {
                   return const FacultyDashboardScreen();
-                } else if (role == 'mentor' || role == 'university_mentor') {
-                  return const MentorMainLayout();
+                } else if (mentorEmails.contains(email) || role == 'hod') {
+                  return const HodMainLayout();
+                } else if (role == 'mentor') {
+                  return const CompanyMentorDashboardScreen();
                 }
 
                 return const StudentMainScreen();

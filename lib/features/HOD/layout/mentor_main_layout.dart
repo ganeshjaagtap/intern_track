@@ -5,14 +5,14 @@ import 'package:flutter_application_2/features/HOD/screens/hod_dashboard_screen.
 import 'package:flutter_application_2/features/HOD/screens/mentor_profile_screen.dart';
 import 'package:flutter_application_2/features/HOD/screens/hod_notifications_screen.dart'; // ✅ ADD THIS
 
-class MentorMainLayout extends StatefulWidget {
-  const MentorMainLayout({super.key});
+class HodMainLayout extends StatefulWidget {
+  const HodMainLayout({super.key});
 
   @override
-  State<MentorMainLayout> createState() => _MentorMainLayoutState();
+  State<HodMainLayout> createState() => _HodMainLayoutState();
 }
 
-class _MentorMainLayoutState extends State<MentorMainLayout> {
+class _HodMainLayoutState extends State<HodMainLayout> {
 
   int _currentIndex = 0;
 
