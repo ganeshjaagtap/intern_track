@@ -216,6 +216,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                               });
                               
                               // Map Firestore field names to expected field names
+                              if (!studentToDisplay.containsKey('name') && studentToDisplay.containsKey('fullName')) {
+                                studentToDisplay['name'] = studentToDisplay['fullName']!;
+                              }
                               if (!studentToDisplay.containsKey('roll') && studentToDisplay.containsKey('enrollmentNo')) {
                                 studentToDisplay['roll'] = studentToDisplay['enrollmentNo']!;
                               }
