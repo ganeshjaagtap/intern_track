@@ -158,10 +158,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _profileImageUrl = data['profileImageUrl'];
 
             if (data['startDate'] != null) {
-              startDate = (data['startDate'] as Timestamp).toDate();
+              final dateString = data['startDate'] as String;
+              startDate = DateTime.parse(dateString);
             }
             if (data['endDate'] != null) {
-              endDate = (data['endDate'] as Timestamp).toDate();
+              final dateString = data['endDate'] as String;
+              endDate = DateTime.parse(dateString);
             }
 
             _isLoading = false;
@@ -204,8 +206,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'year': selectedYear,
           'internshipStatus': selectedStatus,
           'internshipType': selectedType,
-          'startDate': startDate != null ? Timestamp.fromDate(startDate!) : null,
-          'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
+          'startDate': startDate != null ? DateFormat('yyyy-MM-dd').format(startDate!) : null,
+          'endDate': endDate != null ? DateFormat('yyyy-MM-dd').format(endDate!) : null,
           'lastUpdated': FieldValue.serverTimestamp(),
         });
 
@@ -660,6 +662,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }) {
     return TextFormField(
       readOnly: true,
+      controller: TextEditingController(
+        text: selectedDate != null ? DateFormat('dd/MM/yyyy').format(selectedDate) : '',
+      ),
       onTap: () async {
         final pickedDate = await showDatePicker(
           context: context,
@@ -674,9 +679,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
-        hintText: selectedDate != null
-            ? DateFormat('dd/MM/yyyy').format(selectedDate)
-            : 'Select date',
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
