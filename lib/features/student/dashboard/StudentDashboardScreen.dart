@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:flutter_application_2/features/interns/screens/InternshipDetailsScreen.dart';
 import 'package:flutter_application_2/features/interns/screens/InternshipbriefDetail.dart';
 import 'package:flutter_application_2/features/student/models/company_details_screen.dart';
 import 'package:flutter_application_2/features/student/profile/NotificationScreen.dart';
