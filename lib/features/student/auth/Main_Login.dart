@@ -68,7 +68,12 @@ class _LoginScreenState extends State<LoginScreen>
       await _googleSignIn.signOut();
 
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return;
+      
+      // Stop here if the user cancels the Google sign-in dialog
+      if (googleUser == null) {
+        if (mounted) setState(() => isLoading = false);
+        return; 
+      }
 
       final googleAuth = await googleUser.authentication;
 
@@ -80,13 +85,18 @@ class _LoginScreenState extends State<LoginScreen>
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
 
-      if (user == null) return;
+      if (user == null) {
+        if (mounted) setState(() => isLoading = false);
+        return;
+      }
 
       final userRef = FirebaseFirestore.instance
           .collection('user')
           .doc(user.uid);
 
       final snapshot = await userRef.get();
+
+      if (!mounted) return; // Added mounted check before routing
 
       if (!snapshot.exists) {
         await userRef.set({
@@ -106,10 +116,10 @@ class _LoginScreenState extends State<LoginScreen>
         );
       }
     } catch (e) {
-      _showError("Google login failed");
+      if (mounted) _showError("Google login failed"); // Added mounted check
     }
 
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false); // Added mounted check
   }
 
   /// ---------------- EMAIL LOGIN ----------------
@@ -131,25 +141,32 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       final user = credential.user;
-      if (user == null) return;
+      
+      if (user == null) {
+        if (mounted) setState(() => isLoading = false);
+        return;
+      }
 
       final snapshot = await FirebaseFirestore.instance
           .collection('user')
           .doc(user.uid)
           .get();
 
+      if (!mounted) return; // Added mounted check before using context/routing
+
       if (!snapshot.exists) {
         await _auth.signOut();
         _showError("Profile not found. Please Sign Up.");
+        if (mounted) setState(() => isLoading = false);
         return;
       }
 
       _routeByRole(snapshot.get('role'), email);
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? "Login failed");
+      if (mounted) _showError(e.message ?? "Login failed"); // Added mounted check
     }
 
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false); // Added mounted check
   }
 
   /// ---------------- ROUTING ----------------

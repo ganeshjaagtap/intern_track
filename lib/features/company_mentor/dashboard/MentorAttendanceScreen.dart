@@ -272,9 +272,11 @@ class _CompanyMentorAttendanceScreenState
                     ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
+                      // FIXED ERROR 1: Changed 'interns.length' to 'displayedInterns.length'
                       itemCount: displayedInterns.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
+                        // FIXED ERROR 2: Changed 'interns[index]' to 'displayedInterns[index]'
                         final intern = displayedInterns[index];
                         final statusColor = _getStatusColor(intern["status"]);
 
@@ -338,10 +340,11 @@ class _CompanyMentorAttendanceScreenState
                   ),
 
                   const SizedBox(height: 20),
-                ],
+                ], // FIXED ERROR 3: Added missing brackets for Column and SingleChildScrollView
               ),
             ),
-      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
+      bottomNavigationBar:
+          const CompanyMentorBottomBar(currentIndex: 2),
     );
   }
 

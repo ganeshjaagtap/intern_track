@@ -3,3 +3,15 @@ build/
 .idea/
 *.iml
 .vscode/
+
+# Flutter generated files
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -5,16 +5,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 import 'AttendanceDateSelectorScreen.dart';
 
-class CompanyMentorAttendanceScreen extends StatefulWidget {
-  const CompanyMentorAttendanceScreen({super.key});
+class TodayAttendanceScreen extends StatefulWidget {
+  const TodayAttendanceScreen({super.key});
 
   @override
-  State<CompanyMentorAttendanceScreen> createState() =>
-      _CompanyMentorAttendanceScreenState();
+  State<TodayAttendanceScreen> createState() =>
+      _TodayAttendanceScreenState();
 }
 
-class _CompanyMentorAttendanceScreenState
-    extends State<CompanyMentorAttendanceScreen> {
+class _TodayAttendanceScreenState
+    extends State<TodayAttendanceScreen> {
+
   DateTime selectedDate = DateTime.now();
   List<Map<String, dynamic>> interns = [];
   String mentorId = "";
@@ -280,7 +281,10 @@ class _CompanyMentorAttendanceScreenState
                 ),
               ],
             ),
-      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 2),
+        
+
+      bottomNavigationBar:
+          const CompanyMentorBottomBar(currentIndex: 0),
     );
   }
 

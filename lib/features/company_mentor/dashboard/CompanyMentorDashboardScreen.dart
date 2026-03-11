@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_2/features/company_mentor/attendance/CompanyMentorAttendanceScreen.dart';
 
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 import 'MentorAttendanceScreen.dart';
@@ -307,7 +308,8 @@ class _CompanyMentorDashboardScreenState
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const CompanyMentorAttendanceScreen(),
+                    builder: (_) =>
+                        const TodayAttendanceScreen(),
                   ),
                 );
               },

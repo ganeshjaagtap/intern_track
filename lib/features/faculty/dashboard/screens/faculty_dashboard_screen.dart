@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/company_list_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_notification_screen.dart';

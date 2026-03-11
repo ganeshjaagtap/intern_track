@@ -324,39 +324,68 @@ class StudentDashboardScreen extends StatelessWidget {
                         child: TabBarView(
                           children: [
 
-                            /// COMPANY LIST
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListView.builder(
-                                itemCount: companies.length,
-                                itemBuilder: (context, index) {
-                                  final company = companies[index];
+                            /// COMPANY LIST - DYNAMIC FROM FIRESTORE
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('company')
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
 
-                                  return ListTile(
-                                    leading: const Icon(Icons.business),
-                                    title: Text(company["name"]),
-                                    subtitle: Text(company["industry"]),
-                                    trailing: const Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 16,
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              CompanyDetailScreen(
-                                                  companyData: company),
+                                final companies = snapshot.data!.docs;
+                                if (companies.isEmpty) {
+                                  return const Center(
+                                    child: Text('No companies available'),
+                                  );
+                                }
+
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: ListView.builder(
+                                    itemCount: companies.length,
+                                    itemBuilder: (context, index) {
+                                      final companyData =
+                                          companies[index].data()
+                                              as Map<String, dynamic>;
+                                      final companyWithId = {
+                                        ...companyData,
+                                        'id': companies[index].id,
+                                      };
+
+                                      return ListTile(
+                                        leading: const Icon(Icons.business),
+                                        title: Text(
+                                            companyData['name'] ?? 'Unknown'),
+                                        subtitle: Text(
+                                            companyData['industry'] ?? ''),
+                                        trailing: const Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 16,
                                         ),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  CompanyDetailScreen(
+                                                      companyData:
+                                                          companyWithId),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
-                                  );
-                                },
-                              ),
+                                  ),
+                                );
+                              },
                             ),
 
                             /// PROGRESS

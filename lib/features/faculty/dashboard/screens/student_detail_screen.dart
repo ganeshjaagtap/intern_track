@@ -23,7 +23,7 @@ class StudentDetailsScreen extends StatelessWidget {
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
                 child: Text(
-                  student["name"]![0],
+                  (student["name"] ?? "S")[0].toUpperCase(),
                   style: const TextStyle(
                       fontSize: 30, fontWeight: FontWeight.bold),
                 ),
