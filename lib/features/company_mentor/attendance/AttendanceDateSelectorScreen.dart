@@ -41,6 +41,11 @@ class _AttendanceDateSelectorScreenState
   int _startOffset(int y, int m) =>
       DateTime(y, m, 1).weekday % 7;
 
+  bool _isFutureDate(int y, int m, int d) {
+    DateTime selected = DateTime(y, m, d);
+    return selected.isAfter(DateTime.now());
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -60,7 +65,7 @@ class _AttendanceDateSelectorScreenState
         child: Column(
           children: [
 
-            /// MONTH + YEAR
+            /// MONTH + YEAR SELECTOR
             Row(
               children: [
 
@@ -115,7 +120,7 @@ class _AttendanceDateSelectorScreenState
 
             const SizedBox(height: 20),
 
-            /// WEEKDAYS
+            /// WEEKDAY HEADER
             Row(
               children: const [
                 "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
@@ -124,7 +129,9 @@ class _AttendanceDateSelectorScreenState
                   child: Center(
                     child: Text(
                       d,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -154,29 +161,39 @@ class _AttendanceDateSelectorScreenState
 
                   final int day = index - offset + 1;
 
+                  bool isFuture =
+                      _isFutureDate(selectedYear, selectedMonth, day);
+
                   return InkWell(
 
-                    onTap: () {
+                    onTap: isFuture
+                        ? null
+                        : () {
 
-                      Navigator.pop(
-                        context,
-                        DateTime(selectedYear, selectedMonth, day),
-                      );
+                            Navigator.pop(
+                              context,
+                              DateTime(selectedYear, selectedMonth, day),
+                            );
 
-                    },
+                          },
 
                     child: Container(
 
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.15),
+                        color: isFuture
+                            ? Colors.grey.shade300
+                            : Colors.blue.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
 
                       child: Center(
                         child: Text(
                           "$day",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            color: isFuture
+                                ? Colors.grey
+                                : Colors.black,
                           ),
                         ),
                       ),

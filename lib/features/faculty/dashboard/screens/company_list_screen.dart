@@ -28,11 +28,10 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
     return Scaffold(
       backgroundColor: bgLight,
-
       body: Column(
         children: [
 
-          /// 🔎 SEARCH HEADER
+          /// SEARCH HEADER
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             decoration: const BoxDecoration(
@@ -45,7 +44,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
             child: SafeArea(
               bottom: false,
-
               child: Container(
                 height: 50,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -62,7 +60,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
                 child: TextField(
                   controller: _searchController,
-
                   onChanged: (value) {
                     setState(() {
                       searchQuery = value.toLowerCase();
@@ -79,11 +76,9 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
             ),
           ),
 
-          /// 🏢 COMPANY LIST FROM FIREBASE
+          /// COMPANY LIST
           Expanded(
-
             child: StreamBuilder<QuerySnapshot>(
-
               stream: FirebaseFirestore.instance
                   .collection("company")
                   .snapshots(),
@@ -106,7 +101,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
                 final companies = snapshot.data!.docs;
 
-                /// 🔎 SEARCH FILTER
+                /// SEARCH FILTER
                 final filteredCompanies = companies.where((doc) {
 
                   final data =
@@ -124,7 +119,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                 }
 
                 return ListView.builder(
-
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 15),
@@ -176,7 +170,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       Color themeColor) {
 
     return Container(
-
       margin: const EdgeInsets.only(bottom: 16),
 
       decoration: BoxDecoration(
@@ -221,6 +214,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           ),
         ),
 
+        /// COMPANY NAME
         title: Text(
           company["name"] ?? "",
           style: const TextStyle(
@@ -228,11 +222,44 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
               fontWeight: FontWeight.bold),
         ),
 
-        subtitle: Text(
-          company["industry"] ?? "",
-          style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 13),
+        /// INDUSTRY + ADDRESS
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            const SizedBox(height: 3),
+
+            Text(
+              company["industry"] ?? "",
+              style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 13),
+            ),
+
+            const SizedBox(height: 3),
+
+            Row(
+              children: [
+
+                Icon(
+                  Icons.location_on,
+                  size: 14,
+                  color: Colors.grey.shade500,
+                ),
+
+                const SizedBox(width: 4),
+
+                Expanded(
+                  child: Text(
+                    company["address"] ?? "",
+                    style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
 
         trailing: const Icon(

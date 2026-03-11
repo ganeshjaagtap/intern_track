@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 
 class CollegeMentorsScreen extends StatefulWidget {
@@ -9,48 +11,134 @@ class CollegeMentorsScreen extends StatefulWidget {
 }
 
 class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
+  List<Map<String, dynamic>> allMentors = [];
+  List<Map<String, dynamic>> displayedMentors = [];
+  bool isLoading = true;
 
-  final List<Map<String, dynamic>> mentors = [
+  @override
+  void initState() {
+    super.initState();
+    fetchFacultyMentors();
+  }
 
-    {
-      "name": "Dr. Rahul Sharma",
-      "college": "ABC Engineering College",
-      "email": "rahul.sharma@abc.edu",
-      "phone": "+91 9876543210",
-      "interns": 4,
-    },
+  /// FETCH FACULTY & DYNAMICALLY COUNT INTERNS
+  Future<void> fetchFacultyMentors() async {
+    setState(() {
+      isLoading = true;
+    });
 
-    {
-      "name": "Prof. Neha Verma",
-      "college": "XYZ Institute of Technology",
-      "email": "neha.verma@xyz.edu",
-      "phone": "+91 9876500011",
-      "interns": 3,
-    },
+    try {
+      // 1. Fetch all users where the role is 'faculty'
+      var facultySnapshot = await FirebaseFirestore.instance
+          .collection("user")
+          .where("role", isEqualTo: "faculty")
+          .get();
 
-    {
-      "name": "Dr. Amit Kulkarni",
-      "college": "LMN University",
-      "email": "amit.kulkarni@lmn.edu",
-      "phone": "+91 9988776655",
-      "interns": 2,
-    },
+      List<Map<String, dynamic>> tempList = [];
 
-    {
-      "name": "Prof. Sneha Patil",
-      "college": "ABC Engineering College",
-      "email": "sneha.patil@abc.edu",
-      "phone": "+91 9090909090",
-      "interns": 5,
-    },
+      // 2. Loop through each faculty member
+      for (var doc in facultySnapshot.docs) {
+        var data = doc.data();
+        String facultyName = data["fullName"] ?? data["name"] ?? "Unknown Faculty";
 
-  ];
+        // 3. DYNAMIC COUNT: Ask Firebase how many students have this mentor's name
+        // Make sure "collegeMentor" matches your exact field name in the student document!
+        AggregateQuerySnapshot countSnapshot = await FirebaseFirestore.instance
+            .collection("user")
+            .where("role", isEqualTo: "student")
+            .where("collegeMentor", isEqualTo: facultyName) 
+            .count()
+            .get();
+
+        int dynamicInternCount = countSnapshot.count ?? 0;
+
+        tempList.add({
+          "name": facultyName,
+          "college": data["college"] ?? "Unknown College",
+          "department": data["department"] ?? "General",
+          "email": data["email"] ?? "",
+          "phone": data["phone"] ?? "",
+          "interns": dynamicInternCount, // Assigning the real-time count here!
+        });
+      }
+
+      setState(() {
+        allMentors = tempList;
+        displayedMentors = tempList;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching faculty data: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  /// SEARCH FUNCTIONALITY
+  void searchMentor(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        displayedMentors = allMentors;
+      });
+      return;
+    }
+
+    setState(() {
+      displayedMentors = allMentors.where((mentor) {
+        final nameLower = mentor["name"].toString().toLowerCase();
+        final collegeLower = mentor["college"].toString().toLowerCase();
+        final searchLower = query.toLowerCase();
+
+        return nameLower.contains(searchLower) ||
+               collegeLower.contains(searchLower);
+      }).toList();
+    });
+  }
+
+  /// LAUNCH NATIVE PHONE APP
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    if (phoneNumber.isEmpty) {
+      _showError("No phone number available for this mentor.");
+      return;
+    }
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      _showError("Could not launch phone dialer.");
+    }
+  }
+
+  /// LAUNCH NATIVE EMAIL APP
+  Future<void> _sendEmail(String email) async {
+    if (email.isEmpty) {
+      _showError("No email available for this mentor.");
+      return;
+    }
+    final Uri launchUri = Uri(scheme: 'mailto', path: email);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      _showError("Could not launch email app.");
+    }
+  }
+
+  /// HELPER TO SHOW ERRORS
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    int totalMentors = displayedMentors.length;
+    int totalInterns = displayedMentors.fold(0, (sum, item) => sum + (item["interns"] as int));
+    int uniqueColleges = displayedMentors.map((e) => e["college"]).toSet().length;
+    int uniqueDepartments = displayedMentors.map((e) => e["department"]).toSet().length;
 
     return Scaffold(
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF5F9ED6),
         title: const Text("College Mentors"),
@@ -61,308 +149,249 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
           )
         ],
       ),
-
-      body: SingleChildScrollView(
-
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            const Text(
-              "College Mentor Directory",
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// SUMMARY CARDS
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Total Mentors",
-                    value: mentors.length.toString(),
-                    icon: Icons.people,
-                    color: const Color(0xFFBFD1E3),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "College Mentor Directory",
+                    style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  const SizedBox(height: 20),
 
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Colleges",
-                    value: "3",
-                    icon: Icons.school,
-                    color: const Color(0xFFE7D8AE),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Active Interns",
-                    value: "14",
-                    icon: Icons.groups,
-                    color: const Color(0xFFC2D6CC),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Departments",
-                    value: "5",
-                    icon: Icons.apartment,
-                    color: const Color(0xFFE4CFC3),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            /// SEARCH
-
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Search mentor or college...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Mentor List",
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// MENTOR LIST
-
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: mentors.length,
-              separatorBuilder: (_, __) =>
-              const Divider(height: 1),
-              itemBuilder: (context, index) {
-
-                final mentor = mentors[index];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-
-                  child: Column(
+                  Row(
                     children: [
-
-                      Row(
-                        children: [
-
-                          CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              mentor["name"][0],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-
-                                Text(
-                                  mentor["name"],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-
-                                Text(
-                                  mentor["college"],
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade100,
-                              borderRadius:
-                              BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "${mentor["interns"]} interns",
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green),
-                            ),
-                          ),
-                        ],
+                      Expanded(
+                        child: _summaryCard(
+                          title: "Total Mentors",
+                          value: totalMentors.toString(),
+                          icon: Icons.people,
+                          color: const Color(0xFFBFD1E3),
+                        ),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      Row(
-                        children: [
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.email),
-                              label: const Text("Email"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.phone),
-                              label: const Text("Call"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.chat),
-                              label: const Text("Message"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-                        ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _summaryCard(
+                          title: "Colleges",
+                          value: uniqueColleges.toString(),
+                          icon: Icons.school,
+                          color: const Color(0xFFE7D8AE),
+                        ),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                        children: [
-
-                          Text(
-                            mentor["email"],
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey),
-                          ),
-
-                          Text(
-                            mentor["phone"],
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
                     ],
                   ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 30),
-
-            /// ACTION BUTTONS
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.download),
-                    label: const Text("Export Contacts"),
-                    style: ElevatedButton.styleFrom(
-                      padding:
-                      const EdgeInsets.symmetric(
-                          vertical: 14),
-                    ),
-                    onPressed: () {},
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _summaryCard(
+                          title: "Active Interns",
+                          value: totalInterns.toString(),
+                          icon: Icons.groups,
+                          color: const Color(0xFFC2D6CC),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _summaryCard(
+                          title: "Departments",
+                          value: uniqueDepartments.toString(),
+                          icon: Icons.apartment,
+                          color: const Color(0xFFE4CFC3),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
 
-                const SizedBox(width: 12),
+                  const SizedBox(height: 25),
 
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("Refresh"),
-                    style: ElevatedButton.styleFrom(
-                      padding:
-                      const EdgeInsets.symmetric(
-                          vertical: 14),
+                  TextField(
+                    onChanged: (value) => searchMentor(value),
+                    decoration: InputDecoration(
+                      hintText: "Search mentor or college...",
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.grey.shade200,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    onPressed: () {},
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 25),
+
+                  const Text(
+                    "Mentor List",
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  if (displayedMentors.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Text("No mentors found."),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: displayedMentors.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final mentor = displayedMentors[index];
+                        String initial = mentor["name"].isNotEmpty 
+                            ? mentor["name"][0].toUpperCase() 
+                            : "?";
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Text(
+                                      initial,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          mentor["name"],
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          mentor["college"],
+                                          style: const TextStyle(
+                                              fontSize: 12, color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      "${mentor["interns"]} interns",
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.email),
+                                      label: const Text("Email"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                      onPressed: () => _sendEmail(mentor["email"]),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.phone),
+                                      label: const Text("Call"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                      onPressed: () => _makePhoneCall(mentor["phone"]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    mentor["email"].isEmpty ? "No Email" : mentor["email"],
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey),
+                                  ),
+                                  Text(
+                                    mentor["phone"].isEmpty ? "No Phone" : mentor["phone"],
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 30),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.download),
+                          label: const Text("Export Contacts"),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () {},
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh),
+                          label: const Text("Refresh"),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () {
+                            fetchFacultyMentors();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
             ),
-
-            const SizedBox(height: 30),
-
-          ],
-        ),
-      ),
-
-      bottomNavigationBar:
-      const CompanyMentorBottomBar(currentIndex: 0),
+      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
     );
   }
-
-  /// SUMMARY CARD
 
   Widget _summaryCard({
     required String title,
@@ -370,18 +399,14 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
     required IconData icon,
     required Color color,
   }) {
-
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(16),
       ),
-
       child: Row(
         children: [
-
           Container(
             padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
@@ -390,20 +415,15 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
             ),
             child: Icon(icon),
           ),
-
           const SizedBox(width: 10),
-
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Text(
                 value,
                 style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+                    fontSize: 18, fontWeight: FontWeight.bold),
               ),
-
               Text(
                 title,
                 style: const TextStyle(fontSize: 12),

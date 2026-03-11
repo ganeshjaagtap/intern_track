@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
 
 import '../dashboard/StudentDashboardScreen.dart';
@@ -7,53 +10,89 @@ import '../reports/ReportScreen.dart';
 import '../profile/SettingsScreen.dart';
 
 class StudentMainScreen extends StatefulWidget {
-const StudentMainScreen({super.key});
+  const StudentMainScreen({super.key});
 
-@override
-State<StudentMainScreen> createState() => _StudentMainScreenState();
+  @override
+  State<StudentMainScreen> createState() => _StudentMainScreenState();
 }
 
 class _StudentMainScreenState extends State<StudentMainScreen> {
-int currentIndex = 0;
 
-final List<Widget> screens = const [
-StudentDashboardScreen(),
-AttendanceScreen(),
-ReportScreen(),
-SettingsScreen(),
-];
+  int currentIndex = 0;
+  String enrollmentNo = "";
 
-void changeTab(int index) {
-setState(() {
-currentIndex = index;
-});
-}
+  @override
+  void initState() {
+    super.initState();
+    loadStudentData();
+  }
 
-@override
-Widget build(BuildContext context) {
-return Scaffold(
-resizeToAvoidBottomInset: false,
+  /// LOAD STUDENT DATA FROM FIRESTORE
+  Future<void> loadStudentData() async {
 
+    final user = FirebaseAuth.instance.currentUser;
 
-  body: IndexedStack(
-    index: currentIndex,
-    children: screens,
-  ),
+    final doc = await FirebaseFirestore.instance
+        .collection("user")
+        .doc(user!.uid)
+        .get();
 
-  bottomNavigationBar: _CustomBottomNav(
-    currentIndex: currentIndex,
-    onTabSelected: changeTab,
-  ),
-);
+    setState(() {
+      enrollmentNo = doc["enrollmentNo"];
+    });
+  }
 
+  void changeTab(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+  }
 
-}
+  @override
+  Widget build(BuildContext context) {
+
+    /// Wait until enrollment number loads
+    if (enrollmentNo.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final List<Widget> screens = [
+      const StudentDashboardScreen(),
+
+      AttendanceScreen(
+        enrollmentNo: enrollmentNo,
+      ),
+
+      const ReportScreen(),
+      const SettingsScreen(),
+    ];
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+
+      body: IndexedStack(
+        index: currentIndex,
+        children: screens,
+      ),
+
+      bottomNavigationBar: _CustomBottomNav(
+        currentIndex: currentIndex,
+        onTabSelected: changeTab,
+      ),
+    );
+  }
 }
 
 ////////////////////////////////////////////////////////////
 /// CUSTOM BOTTOM NAV
 ////////////////////////////////////////////////////////////
+
 class _CustomBottomNav extends StatelessWidget {
+
   final int currentIndex;
   final Function(int) onTabSelected;
 
@@ -64,26 +103,34 @@ class _CustomBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return SizedBox(
       height: 72,
+
       child: Stack(
         alignment: Alignment.center,
+
         children: [
-          /// FIX: Added Positioned to strictly bind the width to the edges of the screen
+
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
+
             child: Container(
               height: 56,
+
               decoration: const BoxDecoration(
                 color: Colors.white,
+
                 boxShadow: [
                   BoxShadow(color: Colors.black12, blurRadius: 8),
                 ],
               ),
+
               child: Row(
                 children: [
+
                   Expanded(
                     child: _navItem(
                       icon: Icons.home,
@@ -92,6 +139,7 @@ class _CustomBottomNav extends StatelessWidget {
                       onTap: () => onTabSelected(0),
                     ),
                   ),
+
                   Expanded(
                     child: _navItem(
                       icon: Icons.check_circle_outline,
@@ -100,9 +148,9 @@ class _CustomBottomNav extends StatelessWidget {
                       onTap: () => onTabSelected(1),
                     ),
                   ),
-                  
-                  const SizedBox(width: 60), // Spacer for the center button
-                  
+
+                  const SizedBox(width: 60),
+
                   Expanded(
                     child: _navItem(
                       icon: Icons.description,
@@ -111,6 +159,7 @@ class _CustomBottomNav extends StatelessWidget {
                       onTap: () => onTabSelected(2),
                     ),
                   ),
+
                   Expanded(
                     child: _navItem(
                       icon: Icons.settings,
@@ -124,21 +173,35 @@ class _CustomBottomNav extends StatelessWidget {
             ),
           ),
 
-          /// FLOATING CHAT BUTTON (Remains at the top center of the Stack)
+          /// CHAT BUTTON
           Positioned(
             top: 0,
+
             child: GestureDetector(
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatSelectionScreen()));
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChatSelectionScreen(),
+                  ),
+                );
               },
+
               child: Container(
                 width: 64,
                 height: 64,
+
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
-                  border: Border.all(color: Colors.blue, width: 4),
+
+                  border: Border.all(
+                    color: Colors.blue,
+                    width: 4,
+                  ),
                 ),
+
                 child: const Icon(
                   Icons.chat_sharp,
                   color: Colors.blue,
@@ -158,29 +221,28 @@ class _CustomBottomNav extends StatelessWidget {
     required VoidCallback onTap,
     required bool active,
   }) {
+
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque, // Ensures the whole area is clickable
+      behavior: HitTestBehavior.opaque,
+
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              icon,
-              color: active ? Colors.blue : Colors.grey,
-            ),
+
+          Icon(
+            icon,
+            color: active ? Colors.blue : Colors.grey,
           ),
+
           const SizedBox(height: 2),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
+
+          Text(
+            label,
             style: TextStyle(
               fontSize: 11,
               color: active ? Colors.blue : Colors.grey,
-            ),
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

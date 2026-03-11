@@ -1,95 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PastAttendanceScreen extends StatefulWidget {
-  const PastAttendanceScreen({Key? key}) : super(key: key);
+  final String enrollmentNo;
+
+  const PastAttendanceScreen({
+    super.key,
+    required this.enrollmentNo,
+  });
 
   @override
   State<PastAttendanceScreen> createState() => _PastAttendanceScreenState();
 }
 
 class _PastAttendanceScreenState extends State<PastAttendanceScreen> {
-  int selectedMonth = 1; // January
-  int selectedYear = 2026;
+  int selectedMonth = DateTime.now().month;
+  int selectedYear = DateTime.now().year;
 
   final List<String> months = const [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
 
   final List<int> years = [2024, 2025, 2026, 2027];
 
-  /// 🔒 DATA EXISTS ONLY FOR JANUARY 2026
-  final Map<int, String> january2026Data = {
-    for (int i = 1; i <= 18; i++) i: "Present",
-    19: "Absent",
-    20: "Absent",
-    21: "Late",
-    22: "Late",
-    23: "Late",
-    24: "Leave",
-  };
-
-  /// Reason storage
-  final Map<String, String> reasonData = {};
-
-  bool get isJanuary2026 =>
-      selectedMonth == 1 && selectedYear == 2026;
-
-  int _daysInMonth(int y, int m) =>
-      DateTime(y, m + 1, 0).day;
-
-  int _startOffset(int y, int m) =>
-      DateTime(y, m, 1).weekday % 7;
+  int _daysInMonth(int y, int m) => DateTime(y, m + 1, 0).day;
+  int _startOffset(int y, int m) => DateTime(y, m, 1).weekday % 7;
 
   Color _statusColor(String status) {
     switch (status) {
-      case "Present":
+      case "present":
         return Colors.green;
-      case "Absent":
+      case "absent":
         return Colors.red;
-      case "Late":
-        return Colors.orange;
-      case "Leave":
+      case "leave":
         return Colors.blue;
       default:
         return Colors.grey;
     }
-  }
-
-  void _showReasonDialog(int day, String status) {
-    final key = "$selectedYear-$selectedMonth-$day";
-    final controller =
-        TextEditingController(text: reasonData[key] ?? "");
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text("$status Reason (Day $day)"),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: "Enter reason",
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                reasonData[key] = controller.text;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -103,164 +51,193 @@ class _PastAttendanceScreenState extends State<PastAttendanceScreen> {
         backgroundColor: const Color(0xFF6BB6FF),
         title: const Text("PAST ATTENDANCE"),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("attendance")
+            .doc(widget.enrollmentNo)
+            .collection("records")
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
 
-            /// MONTH + YEAR
-            Row(
+          Map<String, String> attendanceData = {};
+          int present = 0;
+          int absent = 0;
+          int leave = 0;
+
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data["status"];
+
+            attendanceData[doc.id] = status;
+
+            if (status == "present") present++;
+            if (status == "absent") absent++;
+            if (status == "leave") leave++;
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _dropdown(
-                  DropdownButton<int>(
-                    value: selectedMonth,
-                    isExpanded: true,
-                    items: List.generate(12, (i) =>
-                      DropdownMenuItem(
-                        value: i + 1,
-                        child: Text(months[i]),
-                      ),
-                    ),
-                    onChanged: (v) {
-                      if (v != null) setState(() => selectedMonth = v);
-                    },
-                  ),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: _dropdown(
-                  DropdownButton<int>(
-                    value: selectedYear,
-                    isExpanded: true,
-                    items: years.map((y) =>
-                      DropdownMenuItem(
-                        value: y,
-                        child: Text(y.toString()),
-                      ),
-                    ).toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => selectedYear = v);
-                    },
-                  ),
-                )),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            /// 🔥 SUMMARY (TOP IS BACK)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: const [
-                  _Summary("18", "Present", Colors.green),
-                  _Summary("2", "Absent", Colors.red),
-                  _Summary("3", "Late", Colors.orange),
-                  _Summary("1", "Leave", Colors.blue),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// WEEKDAYS
-            Row(
-              children: const [
-                "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
-              ].map((d) =>
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      d,
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ).toList(),
-            ),
-
-            const SizedBox(height: 8),
-
-            /// CALENDAR GRID
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: offset + days,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
-              ),
-              itemBuilder: (context, index) {
-                if (index < offset) return const SizedBox();
-
-                final int day = index - offset + 1;
-
-                final String status = isJanuary2026
-                    ? january2026Data[day] ?? "None"
-                    : "None";
-
-                final Color color = _statusColor(status);
-
-                return InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    if (isJanuary2026 &&
-                        (status == "Absent" ||
-                         status == "Late" ||
-                         status == "Leave")) {
-                      _showReasonDialog(day, status);
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: status == "None"
-                          ? Colors.grey.shade200
-                          : color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "$day",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                status == "None" ? Colors.grey : color,
-                          ),
-                        ),
-                        if (status != "None") ...[
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
+                /// MONTH + YEAR
+                Row(
+                  children: [
+                    Expanded(
+                      child: _dropdown(
+                        DropdownButton<int>(
+                          value: selectedMonth,
+                          isExpanded: true,
+                          items: List.generate(
+                            12,
+                            (i) => DropdownMenuItem(
+                              value: i + 1,
+                              child: Text(months[i]),
                             ),
                           ),
-                        ],
-                        if (reasonData.containsKey(
-                            "$selectedYear-$selectedMonth-$day"))
-                          const Icon(
-                            Icons.note,
-                            size: 12,
-                            color: Colors.black54,
-                          ),
-                      ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                selectedMonth = v;
+                              });
+                            }
+                          },
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _dropdown(
+                        DropdownButton<int>(
+                          value: selectedYear,
+                          isExpanded: true,
+                          items: years
+                              .map((y) => DropdownMenuItem(
+                                    value: y,
+                                    child: Text(y.toString()),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                selectedYear = v;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                /// SUMMARY
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                );
-              },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _Summary(present.toString(), "Present", Colors.green),
+                      _Summary(absent.toString(), "Absent", Colors.red),
+                      _Summary(leave.toString(), "Leave", Colors.blue),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                /// WEEKDAYS
+                Row(
+                  children: const ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                      .map(
+                        (d) => Expanded(
+                          child: Center(
+                            child: Text(
+                              d,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+
+                const SizedBox(height: 8),
+
+                /// CALENDAR
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: offset + days,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                  ),
+                  itemBuilder: (context, index) {
+                    if (index < offset) {
+                      return const SizedBox();
+                    }
+
+                    final int day = index - offset + 1;
+
+                    // FIX: Match the exact YYYY-MM-DD format with leading zeros
+                    String dateKey =
+                        "$selectedYear-${selectedMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
+
+                    String status = attendanceData[dateKey] ?? "none";
+                    Color color = _statusColor(status);
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: status == "none"
+                            ? Colors.grey.shade200
+                            : color.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "$day",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: status == "none" ? Colors.grey : color,
+                            ),
+                          ),
+                          if (status != "none") ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -272,12 +249,13 @@ class _PastAttendanceScreenState extends State<PastAttendanceScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: DropdownButtonHideUnderline(child: child),
+      child: DropdownButtonHideUnderline(
+        child: child,
+      ),
     );
   }
 }
 
-/// SUMMARY WIDGET
 class _Summary extends StatelessWidget {
   final String count;
   final String label;
@@ -298,7 +276,10 @@ class _Summary extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(color: color)),
+        Text(
+          label,
+          style: TextStyle(color: color),
+        ),
       ],
     );
   }
