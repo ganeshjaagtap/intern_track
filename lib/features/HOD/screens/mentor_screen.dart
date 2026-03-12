@@ -10,16 +10,19 @@ class MentorScreen extends StatefulWidget {
 }
 
 class _MentorScreenState extends State<MentorScreen> {
+
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
+
     const primaryBlue = Color(0xFF64A9F6);
     const bgLight = Color(0xFFF5F7F9);
 
     return Scaffold(
       backgroundColor: bgLight,
+
       body: Column(
         children: [
 
@@ -27,22 +30,28 @@ class _MentorScreenState extends State<MentorScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             decoration: const BoxDecoration(color: primaryBlue),
+
             child: SafeArea(
               bottom: false,
+
               child: Container(
                 height: 50,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
+
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(25),
                 ),
+
                 child: TextField(
                   controller: _searchController,
+
                   onChanged: (value) {
                     setState(() {
                       searchQuery = value.toLowerCase();
                     });
                   },
+
                   decoration: const InputDecoration(
                     icon: Icon(Icons.search, color: primaryBlue),
                     hintText: "Search mentor...",
@@ -57,6 +66,7 @@ class _MentorScreenState extends State<MentorScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20),
+
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.only(
@@ -64,6 +74,7 @@ class _MentorScreenState extends State<MentorScreen> {
                 bottomRight: Radius.circular(30),
               ),
             ),
+
             child: const Text(
               "Allocated Mentors",
               textAlign: TextAlign.center,
@@ -71,12 +82,15 @@ class _MentorScreenState extends State<MentorScreen> {
             ),
           ),
 
-          /// MENTOR LIST
+          /// FACULTY LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
+
               stream: FirebaseFirestore.instance
-                  .collection('mentor')
+                  .collection('user')
+                  .where('role', isEqualTo: 'faculty')
                   .snapshots(),
+
               builder: (context, snapshot) {
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -89,37 +103,56 @@ class _MentorScreenState extends State<MentorScreen> {
 
                 final mentors = snapshot.data!.docs;
 
-                /// SEARCH FILTER
+                /// FILTER DEPARTMENT
                 final filteredMentors = mentors.where((doc) {
+
                   final data = doc.data() as Map<String, dynamic>;
-                  final name = (data['name'] ?? "")
-                      .toString()
-                      .toLowerCase();
-                  return name.contains(searchQuery);
+
+                  final name =
+                      (data['fullName'] ?? "").toString().toLowerCase();
+
+                  final dept =
+                      (data['dept'] ?? "").toString().toLowerCase();
+
+                  bool isITDept =
+                      dept.contains("it") ||
+                      dept.contains("information technology");
+
+                  return isITDept && name.contains(searchQuery);
+
                 }).toList();
 
+                if (filteredMentors.isEmpty) {
+                  return const Center(
+                    child: Text("No IT mentors found"),
+                  );
+                }
+
                 return ListView.builder(
+
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 15,
-                  ),
+                      horizontal: 16,
+                      vertical: 15),
+
                   itemCount: filteredMentors.length,
+
                   itemBuilder: (context, index) {
 
                     final data =
                         filteredMentors[index].data() as Map<String, dynamic>;
 
-                    /// Convert Firestore → String map
                     Map<String, String> mentor = {
-                      "name": data['name']?.toString() ?? "",
-                      "id": data['id']?.toString() ?? "",
+
+                      "name": data['fullName']?.toString() ?? "",
+                      "id": data['facultyId']?.toString() ?? "",
                       "dept": data['dept']?.toString() ?? "",
                       "designation": data['designation']?.toString() ?? "",
                       "email": data['email']?.toString() ?? "",
-                      "phone": data['phone']?.toString() ?? "",
-                      "totalStudents": data['totalStudents']?.toString() ?? "",
-                      "companies": data['companies']?.toString() ?? "",
-                      "img": data['img']?.toString() ?? "",
+                      "phone": data['phoneNumber']?.toString() ?? "",
+                      "totalStudents": "",
+                      "companies": "",
+                      "img": "",
+
                     };
 
                     return _buildMentorCard(mentor, primaryBlue);
@@ -137,14 +170,17 @@ class _MentorScreenState extends State<MentorScreen> {
   Widget _buildMentorCard(Map<String, String> mentor, Color themeColor) {
 
     final name = mentor['name'] ?? "";
-    final email = mentor['email'] ?? "Not Provided";
+    final email = mentor['email'] ?? "";
     final img = mentor['img'] ?? "";
 
     return Container(
+
       margin: const EdgeInsets.only(bottom: 16),
+
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(.05),
@@ -156,6 +192,7 @@ class _MentorScreenState extends State<MentorScreen> {
 
       child: Material(
         color: Colors.transparent,
+
         child: InkWell(
           borderRadius: BorderRadius.circular(25),
 
@@ -171,25 +208,19 @@ class _MentorScreenState extends State<MentorScreen> {
 
           child: Padding(
             padding: const EdgeInsets.all(12),
+
             child: Row(
               children: [
 
-                /// IMAGE
-                Hero(
-                  tag: name,
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundImage: NetworkImage(
-                      img.isNotEmpty
-                          ? img
-                          : "https://i.pravatar.cc/150",
-                    ),
-                  ),
+                CircleAvatar(
+                  radius: 28,
+                  backgroundImage: img.isNotEmpty
+                      ? NetworkImage(img)
+                      : const NetworkImage("https://i.pravatar.cc/150"),
                 ),
 
                 const SizedBox(width: 15),
 
-                /// TEXT
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
