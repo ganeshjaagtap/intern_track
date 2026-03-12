@@ -67,6 +67,7 @@ class NotificationScreen extends StatelessWidget {
               final message = data["desc"] ?? "";
               final type = data["type"] ?? "";
               final ts = data["createdAt"];
+              final senderName = data["senderName"] ?? data["sender"] ?? "Unknown";
 
               final icon = getIcon(type);
               final color = getColor(type);
@@ -89,6 +90,7 @@ class NotificationScreen extends StatelessWidget {
                   time,
                   icon,
                   color,
+                  senderName,
                 ),
               );
             },
@@ -105,6 +107,7 @@ class NotificationScreen extends StatelessWidget {
     String time,
     IconData icon,
     Color color,
+    String senderName,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -159,12 +162,25 @@ class NotificationScreen extends StatelessWidget {
 
                 const SizedBox(height: 6),
 
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "By: $senderName",
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -242,10 +258,25 @@ class StudentNotificationDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            /// Sender
+            /// Sender Name and Role
             Text(
-              "Sent by: ${data["sender"] ?? ""}",
-              style: const TextStyle(color: Colors.grey),
+              "Sent by: ${data["senderName"] ?? data["sender"] ?? "Unknown"}",
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            /// Sender Role
+            Text(
+              "Role: ${data["senderRole"] ?? data["sender"] ?? ""}",
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
             ),
 
             const SizedBox(height: 20),

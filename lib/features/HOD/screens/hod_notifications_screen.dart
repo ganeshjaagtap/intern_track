@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HodNotificationsScreen extends StatefulWidget {
   const HodNotificationsScreen({super.key});
@@ -34,14 +35,36 @@ class _HodNotificationsScreenState extends State<HodNotificationsScreen>
       return;
     }
 
-    await FirebaseFirestore.instance.collection("notifications").add({
-      "title": titleController.text,
-      "desc": descController.text,
-      "type": selectedType,
-      "sender": "HOD",
-      "target": "all",
-      "createdAt": Timestamp.now(),
-    });
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      String senderName = "HOD";
+
+      if (currentUser != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('user')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          senderName = userDoc.get('fullName') ?? userDoc.get('name') ?? 'HOD';
+        }
+      }
+
+      await FirebaseFirestore.instance.collection("notifications").add({
+        "title": titleController.text,
+        "desc": descController.text,
+        "type": selectedType,
+        "senderName": senderName,
+        "senderRole": "HOD",
+        "target": "all",
+        "createdAt": Timestamp.now(),
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error publishing notification: $e")),
+      );
+      return;
+    }
 
     titleController.clear();
     descController.clear();
@@ -333,9 +356,25 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
 
             const SizedBox(height:10),
 
+            /// Publisher Name
             Text(
-              "Sent by: ${widget.data["sender"] ?? ""}",
-              style: const TextStyle(color: Colors.grey),
+              "Sent by: ${widget.data["senderName"] ?? widget.data["sender"] ?? "Unknown"}",
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            /// Publisher Role/Designation
+            Text(
+              "Role: ${widget.data["senderRole"] ?? widget.data["sender"] ?? ""}",
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
             ),
 
             const SizedBox(height:20),

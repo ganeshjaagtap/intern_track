@@ -60,11 +60,25 @@ class _CompanyMentorNotificationScreenState
     }
 
     try {
+      String senderName = "Company Mentor";
+
+      if (mentorId != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('user')
+            .doc(mentorId)
+            .get();
+        
+        if (userDoc.exists) {
+          senderName = userDoc.get('fullName') ?? userDoc.get('name') ?? 'Company Mentor';
+        }
+      }
+
       await FirebaseFirestore.instance.collection("notifications").add({
         "title": titleController.text,
         "desc": descController.text,
         "type": selectedType,
-        "sender": "Company Mentor",
+        "senderName": senderName,
+        "senderRole": "Company Mentor",
         "senderId": mentorId, // SECURE: Locks this notice to this mentor
         "target": "students", // Targets their interns
         "createdAt": FieldValue.serverTimestamp(),
@@ -420,7 +434,39 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// DATE AND SENDER INFO
+            /// PUBLISHER NAME AND ROLE
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Published by: ${widget.data["senderName"] ?? widget.data["sender"] ?? "Unknown"}",
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Designation: ${widget.data["senderRole"] ?? "Company Mentor"}",
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            /// DATE INFO
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

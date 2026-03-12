@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FacultyNotificationScreen extends StatefulWidget {
   const FacultyNotificationScreen({super.key});
@@ -57,16 +58,36 @@ class _FacultyNotificationScreenState extends State<FacultyNotificationScreen>
       return;
     }
 
-    await FirebaseFirestore.instance.collection("notifications").add({
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      String senderName = "Faculty Member";
 
-      "title": titleController.text,
-      "desc": descController.text,
-      "type": selectedType,
-      "sender": "Faculty",
-      "target": "all",
-      "createdAt": Timestamp.now(),
+      if (currentUser != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('user')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          senderName = userDoc.get('fullName') ?? userDoc.get('name') ?? 'Faculty Member';
+        }
+      }
 
-    });
+      await FirebaseFirestore.instance.collection("notifications").add({
+        "title": titleController.text,
+        "desc": descController.text,
+        "type": selectedType,
+        "senderName": senderName,
+        "senderRole": "Faculty",
+        "target": "all",
+        "createdAt": Timestamp.now(),
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error publishing notification: $e")),
+      );
+      return;
+    }
 
     titleController.clear();
     descController.clear();
@@ -125,13 +146,59 @@ class _FacultyNotificationScreenState extends State<FacultyNotificationScreen>
 
             return InkWell(
 
-              /// OPEN POPUP
+              /// OPEN DETAILS DIALOG
               onTap: () {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
                     title: Text(title),
-                    content: Text(message),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(message),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Published by: ${data["senderName"] ?? data["sender"] ?? "Unknown"}",
+                                  style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Designation: ${data["senderRole"] ?? data["sender"] ?? ""}",
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Date: $time",
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     actions: [
                       TextButton(
                         child: const Text("Close"),
@@ -191,11 +258,24 @@ class _FacultyNotificationScreenState extends State<FacultyNotificationScreen>
 
                           const SizedBox(height: 4),
 
-                          Text(
-                            time,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "By: ${data["senderName"] ?? data["sender"] ?? "Unknown"}",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                time,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey),
+                              ),
+                            ],
                           ),
                         ],
                       ),
