@@ -17,7 +17,6 @@ class CompanyMentorSettingsScreen extends StatefulWidget {
 
 class _CompanyMentorSettingsScreenState
     extends State<CompanyMentorSettingsScreen> {
-  
   bool notificationsEnabled = true;
   bool darkMode = false;
 
@@ -49,17 +48,18 @@ class _CompanyMentorSettingsScreenState
         if (userDoc.exists) {
           final data = userDoc.data() as Map<String, dynamic>;
           setState(() {
-            // FIX: Using your exact database key "mentor_name"
-            name = data["mentor_name"] ?? "Company Mentor";
-            // "email" perfectly matches your database field
-            email = data["email"] ?? currentUser.email ?? "No Email Provided"; 
+            name = (data["fullName"] ?? "Company Mentor").toString();
+            email = (data["email"] ?? currentUser.email ?? "No Email Provided")
+                .toString();
           });
         }
       }
     } catch (e) {
-      print("Error loading user data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load profile: $e"), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text("Failed to load profile: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() {
@@ -136,10 +136,7 @@ class _CompanyMentorSettingsScreenState
                     final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EditProfileScreen(
-                          name: name,
-                          email: email,
-                        ),
+                        builder: (_) => const EditProfileScreen(),
                       ),
                     );
 

@@ -1,32 +1,85 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_2/features/faculty/calendar/calender_tile.dart';
 import 'package:flutter_application_2/features/faculty/calendar/event_bottom_sheet.dart';
 import 'package:flutter_application_2/features/faculty/calendar/models/event_model.dart';
-import 'package:flutter_application_2/features/faculty/calendar/reminder_screen.dart';
 import 'package:flutter_application_2/features/faculty/calendar/service/calendar_service.dart';
 
 class FacultyCalendarScreen extends StatefulWidget {
-  const FacultyCalendarScreen({super.key});
+  final bool showBackButton;
+
+  const FacultyCalendarScreen({
+    super.key,
+    this.showBackButton = false,
+  });
 
   @override
-  State<FacultyCalendarScreen> createState() =>
-      _FacultyCalendarScreenState();
+  State<FacultyCalendarScreen> createState() => _FacultyCalendarScreenState();
 }
 
-class _FacultyCalendarScreenState
-    extends State<FacultyCalendarScreen> {
-
+class _FacultyCalendarScreenState extends State<FacultyCalendarScreen> {
   final CalendarService _service = CalendarService();
 
-  String facultyId = "faculty1"; // backend ready
+  String facultyId = "";
+  bool _isLoadingFaculty = true;
   DateTime selectedMonth = DateTime.now();
 
   final List<String> monthNames = const [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
-  /// EVENT COLOR
+  @override
+  void initState() {
+    super.initState();
+    _loadFacultyId();
+  }
+
+  Future<void> _loadFacultyId() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception("Faculty not logged in");
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection("user")
+          .doc(currentUser.uid)
+          .get();
+
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+
+      if (!mounted) return;
+      setState(() {
+        facultyId =
+            (data["facultyId"] ?? data["uid"] ?? currentUser.uid).toString();
+        _isLoadingFaculty = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingFaculty = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load calendar data: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Color _getEventColor(String type) {
     switch (type.toLowerCase()) {
       case "meeting":
@@ -42,80 +95,55 @@ class _FacultyCalendarScreenState
     }
   }
 
+  DateTime _startOfToday() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   @override
   Widget build(BuildContext context) {
-
-    final events = _service.getAllEvents(facultyId);
+    if (_isLoadingFaculty) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF2F2F2),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F2),
-
-      /// ❌ NO BACK BUTTON (TAB SCREEN)
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: widget.showBackButton,
         backgroundColor: const Color(0xFF6EA8DC),
         elevation: 0,
         title: const Text(
           "CALENDAR",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ReminderScreen(),
-                    ),
-                  );
-                },
-              ),
-              if (events.isNotEmpty)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      events.length.toString(),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10),
-                    ),
-                  ),
-                )
-            ],
-          )
-        ],
       ),
+      body: StreamBuilder<List<EventModel>>(
+        stream: _service.watchAllEvents(facultyId),
+        builder: (context, snapshot) {
+          final events = snapshot.data ?? [];
 
-      body: Column(
-        children: [
-
-          /// MONTH + YEAR
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(child: _monthDropdown()),
-                const SizedBox(width: 10),
-                Expanded(child: _yearDropdown()),
-              ],
-            ),
-          ),
-
-          _weekdayRow(),
-          const SizedBox(height: 10),
-          Expanded(child: _calendarGrid()),
-          _upcomingSection(),
-        ],
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(child: _monthDropdown()),
+                    const SizedBox(width: 10),
+                    Expanded(child: _yearDropdown()),
+                  ],
+                ),
+              ),
+              _weekdayRow(),
+              const SizedBox(height: 10),
+              Expanded(child: _calendarGrid(events)),
+              _upcomingSection(events),
+            ],
+          );
+        },
       ),
     );
   }
@@ -139,8 +167,7 @@ class _FacultyCalendarScreenState
         }),
         onChanged: (val) {
           setState(() {
-            selectedMonth =
-                DateTime(selectedMonth.year, val!);
+            selectedMonth = DateTime(selectedMonth.year, val!);
           });
         },
       ),
@@ -159,7 +186,7 @@ class _FacultyCalendarScreenState
         isExpanded: true,
         underline: const SizedBox(),
         items: List.generate(5, (index) {
-          int year = DateTime.now().year - 2 + index;
+          final int year = DateTime.now().year - 2 + index;
           return DropdownMenuItem(
             value: year,
             child: Text(year.toString()),
@@ -167,8 +194,7 @@ class _FacultyCalendarScreenState
         }),
         onChanged: (val) {
           setState(() {
-            selectedMonth =
-                DateTime(val!, selectedMonth.month);
+            selectedMonth = DateTime(val!, selectedMonth.month);
           });
         },
       ),
@@ -176,57 +202,55 @@ class _FacultyCalendarScreenState
   }
 
   Widget _weekdayRow() {
-    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: days
-            .map((d) => SizedBox(
-                  width: 30,
-                  child: Text(
-                    d,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold),
-                  ),
-                ))
+            .map(
+              (day) => SizedBox(
+                width: 30,
+                child: Text(
+                  day,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            )
             .toList(),
       ),
     );
   }
 
-  Widget _calendarGrid() {
-    int daysInMonth = DateTime(
-            selectedMonth.year,
-            selectedMonth.month + 1,
-            0)
-        .day;
+  Widget _calendarGrid(List<EventModel> events) {
+    final int daysInMonth =
+        DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate:
-          const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
       itemCount: daysInMonth,
       itemBuilder: (context, index) {
-        int day = index + 1;
-
-        DateTime currentDate = DateTime(
+        final int day = index + 1;
+        final DateTime currentDate = DateTime(
           selectedMonth.year,
           selectedMonth.month,
           day,
         );
 
-        final dayEvents =
-            _service.getEventsByDate(currentDate, facultyId);
+        final dayEvents = events
+            .where((event) =>
+                event.dateTime.year == currentDate.year &&
+                event.dateTime.month == currentDate.month &&
+                event.dateTime.day == currentDate.day)
+            .toList();
 
-        bool hasEvent = dayEvents.isNotEmpty;
-
+        final bool hasEvent = dayEvents.isNotEmpty;
         Color? eventColor;
 
         if (hasEvent) {
@@ -247,57 +271,51 @@ class _FacultyCalendarScreenState
                 facultyId: facultyId,
               ),
             );
-
-            setState(() {});
           },
         );
       },
     );
   }
 
-  Widget _upcomingSection() {
-    List<EventModel> events =
-        _service.getAllEvents(facultyId);
-
-    events.sort((a, b) =>
-        a.dateTime.compareTo(b.dateTime));
-
+  Widget _upcomingSection(List<EventModel> events) {
+    final todayStart = _startOfToday();
     final upcoming = events
-        .where((e) =>
-            e.dateTime.isAfter(DateTime.now()))
-        .take(3)
+        .where((e) => !e.dateTime.isBefore(todayStart))
         .toList();
 
-    if (upcoming.isEmpty) return const SizedBox();
+    upcoming.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    final nearestUpcoming = upcoming.take(3).toList();
+
+    if (nearestUpcoming.isEmpty) return const SizedBox();
 
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             "Upcoming Events",
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          ...upcoming.map((e) => ListTile(
-                leading: CircleAvatar(
-                  backgroundColor:
-                      _getEventColor(e.type),
-                  child: const Icon(
-                    Icons.calendar_today,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+          ...nearestUpcoming.map(
+            (event) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: _getEventColor(event.type),
+                child: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.white,
+                  size: 16,
                 ),
-                title: Text(e.title),
-                subtitle: Text(
-                    "${e.dateTime.day} ${monthNames[e.dateTime.month - 1]} • ${e.type}"),
-              ))
+              ),
+              title: Text(event.title),
+              subtitle: Text(
+                "${event.dateTime.day} ${monthNames[event.dateTime.month - 1]} • ${event.type}",
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -43,8 +43,8 @@ class FacultyBottomNav extends StatelessWidget {
                 ),
                 const SizedBox(width: 60),
                 _navItem(
-                  icon: Icons.calendar_month_outlined,
-                  label: "Calendar",
+                  icon: Icons.fact_check_outlined,
+                  label: "Attendance",
                   active: currentIndex == 2,
                   onTap: () => onTabSelected(2),
                 ),

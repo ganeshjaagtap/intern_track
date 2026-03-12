@@ -5,12 +5,21 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flutter_application_2/features/interns/screens/InternshipbriefDetail.dart';
 import 'package:flutter_application_2/features/student/models/company_details_screen.dart';
+import 'package:flutter_application_2/features/student/notifications/student_event_notifications_screen.dart';
 import 'package:flutter_application_2/features/student/profile/NotificationScreen.dart';
 import 'package:flutter_application_2/features/student/reports/SubmitReportScreen.dart';
 import 'package:flutter_application_2/features/student/task/student_task_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
+
+  String _formatEventDate(dynamic value) {
+    if (value is Timestamp) {
+      final dt = value.toDate();
+      return "${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    }
+    return "";
+  }
 
   String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -265,6 +274,118 @@ class StudentDashboardScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("notifications")
+                      .where("recipientId", isEqualTo: uid)
+                      .snapshots(),
+                  builder: (context, eventSnapshot) {
+                    if (!eventSnapshot.hasData) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final docs = eventSnapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return (data["type"] ?? "").toString() == "event";
+                    }).toList();
+
+                    docs.sort((a, b) {
+                      final aData = a.data() as Map<String, dynamic>;
+                      final bData = b.data() as Map<String, dynamic>;
+                      final aTs = aData["createdAt"];
+                      final bTs = bData["createdAt"];
+
+                      if (aTs is Timestamp && bTs is Timestamp) {
+                        return bTs.compareTo(aTs);
+                      }
+                      return 0;
+                    });
+
+                    if (docs.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final latest = docs.first.data() as Map<String, dynamic>;
+                    final eventType =
+                        (latest["eventType"] ?? "Event").toString();
+                    final eventDate = _formatEventDate(latest["eventDateTime"]);
+                    final eventSummary =
+                        (latest["title"] ?? eventType).toString();
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const StudentEventNotificationsScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD9ECFF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.event_available,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Upcoming Events",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      eventDate.isEmpty
+                                          ? eventSummary
+                                          : "$eventSummary • $eventDate",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                "View",
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 24),
