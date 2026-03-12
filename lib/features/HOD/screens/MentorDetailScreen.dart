@@ -1,30 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class MentorDetailScreen extends StatelessWidget {
+class MentorDetailScreen extends StatefulWidget {
   final Map<String, String> mentorData;
 
   const MentorDetailScreen({super.key, required this.mentorData});
 
+  @override
+  State<MentorDetailScreen> createState() => _MentorDetailScreenState();
+}
+
+class _MentorDetailScreenState extends State<MentorDetailScreen> {
+
   static const Color primaryBlue = Color(0xFF64A9F6);
+
+  int totalStudents = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStudentCount();
+  }
+
+  /// FETCH STUDENT COUNT
+  Future<void> fetchStudentCount() async {
+
+    final facultyId = widget.mentorData['id'] ?? "";
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('student')
+        .where('facultyId', isEqualTo: facultyId)
+        .get();
+
+    setState(() {
+      totalStudents = snapshot.docs.length;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final name = mentorData['name'] ?? "Unknown Mentor";
-    final designation = mentorData['designation'] ?? "Faculty Member";
-    final img = mentorData['img'] ?? "";
-    final email = mentorData['email'] ?? "";
-    final phone = mentorData['phone'] ?? "Not Provided";
-    final id = mentorData['id'] ?? "Not Assigned";
-    final dept = mentorData['dept'] ?? "Not Specified";
-    final totalStudents = mentorData['totalStudents'] ?? "0";
-    final companies = mentorData['companies'] ?? "Not Available";
+
+    final name = widget.mentorData['name'] ?? "Unknown Mentor";
+    final designation = widget.mentorData['designation'] ?? "Faculty Member";
+    final img = widget.mentorData['img'] ?? "";
+    final email = widget.mentorData['email'] ?? "";
+    final phone = widget.mentorData['phone'] ?? "Not Provided";
+    final id = widget.mentorData['id'] ?? "Not Assigned";
+    final dept = widget.mentorData['dept'] ?? "Not Specified";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F9),
       extendBodyBehindAppBar: true,
 
-      /// APPBAR
+      /// APP BAR
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -61,11 +90,9 @@ class MentorDetailScreen extends StatelessWidget {
                       backgroundColor: Colors.white,
                       child: CircleAvatar(
                         radius: 56,
-                        backgroundImage: NetworkImage(
-                          img.isNotEmpty
-                              ? img
-                              : "https://i.pravatar.cc/150",
-                        ),
+                        backgroundImage: img.isNotEmpty
+                            ? NetworkImage(img)
+                            : const NetworkImage("https://i.pravatar.cc/150"),
                       ),
                     ),
                   ),
@@ -126,11 +153,10 @@ class MentorDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  /// STUDENT INFO
+                  /// STUDENT COUNT
                   _buildSectionTitle("Student Oversight"),
                   _buildDetailCard([
-                    _buildRow(Icons.groups_outlined, "Total Students", totalStudents),
-                    _buildRow(Icons.business_center_outlined, "Internship Companies", companies),
+                    _buildRow(Icons.groups_outlined, "Total Students", totalStudents.toString()),
                   ]),
 
                   const SizedBox(height: 30),
@@ -203,7 +229,7 @@ class MentorDetailScreen extends StatelessWidget {
     );
   }
 
-  /// INFO ROW
+  /// ROW
   Widget _buildRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -225,6 +251,7 @@ class MentorDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Text(
                   label,
                   style: const TextStyle(
@@ -233,7 +260,9 @@ class MentorDetailScreen extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+
                 const SizedBox(height: 2),
+
                 Text(
                   value,
                   style: const TextStyle(
@@ -250,7 +279,7 @@ class MentorDetailScreen extends StatelessWidget {
     );
   }
 
-  /// EMAIL LAUNCH
+  /// EMAIL FUNCTION
   Future<void> _launchEmail(String email) async {
 
     final Uri url = Uri(
