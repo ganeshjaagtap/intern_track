@@ -1,217 +1,109 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/features/faculty/dashboard/models/student_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_2/features/faculty/groups/group_model.dart';
+import 'package:flutter_application_2/features/faculty/groups/select_student_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
   final GroupModel group;
-  final List<GroupModel> allGroups;
-
-  const GroupDetailsScreen({
-    super.key,
-    required this.group,
-    required this.allGroups,
-  });
+  const GroupDetailsScreen({super.key, required this.group});
 
   @override
-  State<GroupDetailsScreen> createState() =>
-      _GroupDetailsScreenState();
+  State<GroupDetailsScreen> createState() => _GroupDetailsScreenState();
 }
 
-class _GroupDetailsScreenState
-    extends State<GroupDetailsScreen> {
+class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Generate students 237001–237073
-  late List<StudentModel> allStudents;
+  /// ✅ ADD STUDENT: Updates Group doc AND Student doc
+  Future<void> _addStudent(Map<String, dynamic> studentData) async {
+    final String studentUid = studentData['uid'];
+    final String studentName = studentData['name'];
 
-  @override
-  void initState() {
-    super.initState();
-    allStudents = List.generate(
-      73,
-      (index) {
-        final enrollment = (237001 + index).toString();
-        return StudentModel(
-          enrollment: enrollment,
-          name: "Student ${index + 1}",
-        );
-      },
-    );
-  }
+    WriteBatch batch = _firestore.batch();
+    DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
+    DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
 
-  bool isStudentAssigned(String enrollment) {
-    for (var group in widget.allGroups) {
-      if (group.students.contains(enrollment) &&
-          group.id != widget.group.id) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void openStudentSelector() async {
-    if (widget.group.students.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text("Maximum 5 students allowed in a group"),
-        ),
-      );
-      return;
-    }
-
-    final selectedStudent =
-        await showModalBottomSheet<StudentModel>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        String searchQuery = "";
-
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final filteredStudents = allStudents
-                .where((student) => student.enrollment
-                    .contains(searchQuery))
-                .toList();
-
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom:
-                    MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SizedBox(
-                height:
-                    MediaQuery.of(context).size.height *
-                        0.75,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    const Text(
-                      "Select Student",
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.bold),
-                    ),
-                    Padding(
-                      padding:
-                          const EdgeInsets.all(8.0),
-                      child: TextField(
-                        decoration:
-                            const InputDecoration(
-                          hintText:
-                              "Search Enrollment No",
-                          prefixIcon:
-                              Icon(Icons.search),
-                          border:
-                              OutlineInputBorder(),
-                        ),
-                        onChanged: (value) {
-                          setModalState(() {
-                            searchQuery = value;
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount:
-                            filteredStudents.length,
-                        itemBuilder:
-                            (context, index) {
-                          final student =
-                              filteredStudents[
-                                  index];
-                          final assigned =
-                              isStudentAssigned(
-                                  student
-                                      .enrollment);
-
-                          return ListTile(
-                            title: Text(
-                                student.enrollment),
-                            subtitle:
-                                Text(student.name),
-                            enabled: !assigned,
-                            trailing: assigned
-                                ? const Text(
-                                    "Assigned",
-                                    style: TextStyle(
-                                        color:
-                                            Colors.red),
-                                  )
-                                : null,
-                            onTap: assigned
-                                ? null
-                                : () {
-                                    Navigator.pop(
-                                        context,
-                                        student);
-                                  },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    if (selectedStudent != null) {
-      setState(() {
-        widget.group.students
-            .add(selectedStudent.enrollment);
-      });
-    }
-  }
-
-  void removeStudent(int index) {
-    setState(() {
-      widget.group.students.removeAt(index);
+    // 1. Add UID to Group
+    batch.update(groupRef, {
+      'studentIds': FieldValue.arrayUnion([studentUid]),
     });
+
+    // 2. Link Group details to Student profile
+    batch.update(studentRef, {
+      'assignedGroupId': widget.group.id,
+      'assignedGroupName': widget.group.name,
+    });
+
+    try {
+      await batch.commit();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$studentName added to group!")));
+    } catch (e) {
+      debugPrint("Add Error: $e");
+    }
+  }
+
+  /// ✅ REMOVE STUDENT: Clears data from both locations
+  Future<void> _removeStudent(String studentUid) async {
+    WriteBatch batch = _firestore.batch();
+    DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
+    DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
+
+    batch.update(groupRef, {'studentIds': FieldValue.arrayRemove([studentUid])});
+    batch.update(studentRef, {
+      'assignedGroupId': FieldValue.delete(),
+      'assignedGroupName': FieldValue.delete(),
+    });
+
+    await batch.commit();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.group.name),
-      ),
-      body: widget.group.students.isEmpty
-          ? const Center(
-              child: Text("No students added yet"),
-            )
-          : ListView.builder(
-              itemCount:
-                  widget.group.students.length,
-              itemBuilder: (context, index) {
-                final enrollment =
-                    widget.group.students[index];
+      appBar: AppBar(title: Text(widget.group.name), backgroundColor: const Color(0xFF6EA8DC)),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _firestore.collection('groups').doc(widget.group.id).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final List<String> memberIds = List<String>.from(data['studentIds'] ?? []);
 
-                return ListTile(
-                  title: Text(enrollment),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.delete,
-                      color: Colors.red,
+          if (memberIds.isEmpty) return const Center(child: Text("No students in this group."));
+
+          return ListView.builder(
+            itemCount: memberIds.length,
+            itemBuilder: (context, index) {
+              return FutureBuilder<DocumentSnapshot>(
+                future: _firestore.collection('user').doc(memberIds[index]).get(),
+                builder: (context, userSnap) {
+                  if (!userSnap.hasData) return const SizedBox();
+                  final userData = userSnap.data!.data() as Map<String, dynamic>;
+                  return ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person)),
+                    title: Text(userData['fullName'] ?? "Unknown"),
+                    subtitle: Text(userData['enrollmentNo'] ?? ""),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.remove_circle, color: Colors.red),
+                      onPressed: () => _removeStudent(memberIds[index]),
                     ),
-                    onPressed: () =>
-                        removeStudent(index),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton:
-          widget.group.students.length < 5
-              ? FloatingActionButton(
-                  onPressed: openStudentSelector,
-                  child:
-                      const Icon(Icons.person_add),
-                )
-              : null,
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        label: const Text("Add Member"),
+        icon: const Icon(Icons.person_add),
+        backgroundColor: const Color(0xFF6EA8DC),
+        onPressed: () async {
+          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectStudentScreen()));
+          if (result != null) _addStudent(result);
+        },
+      ),
     );
   }
 }

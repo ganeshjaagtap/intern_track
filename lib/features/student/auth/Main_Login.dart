@@ -8,6 +8,7 @@ import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty
 import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_application_2/features/student/auth/CreateAccountScreen.dart';
+import 'package:flutter_application_2/features/student/auth/PendingApprovalScreen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,8 +20,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late Animation<double> _animation;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -40,18 +40,13 @@ class _LoginScreenState extends State<LoginScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1200),
-    )..repeat(reverse: true);
+      duration: const Duration(seconds: 20),
+    )..repeat();
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.95,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.02),
-      end: const Offset(0, -0.02),
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _animation = Tween<double>(
+      begin: -200,
+      end: 200,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
 
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) setState(() => startAnimation = true);
@@ -66,23 +61,74 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  String _getDatabaseRole(String uiRole) {
+    if (uiRole == 'Faculty') return 'faculty';
+    if (uiRole == 'Company Mentor') return 'mentor';
+    return 'student'; 
+  }
+
+  /// ---------------- ROLE SELECTION DIALOG ----------------
+  Future<String?> _showRoleSelectionDialog() async {
+    String tempRole = 'Student'; 
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false, 
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Welcome!", style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Please select your role to complete registration:"),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: tempRole,
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.badge, color: primaryBlue),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                items: ['Student', 'Faculty', 'Company Mentor'].map((String role) {
+                  return DropdownMenuItem<String>(
+                    value: role,
+                    child: Text(role),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) tempRole = newValue;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null), 
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: primaryBlue),
+              onPressed: () => Navigator.pop(context, tempRole), 
+              child: const Text("Continue", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// ---------------- GOOGLE LOGIN ----------------
   Future<void> signInWithGoogle() async {
     setState(() => isLoading = true);
-
     try {
       await _googleSignIn.signOut();
-
       final googleUser = await _googleSignIn.signIn();
-      
-      // Stop here if the user cancels the Google sign-in dialog
       if (googleUser == null) {
         if (mounted) setState(() => isLoading = false);
-        return; 
+        return;
       }
 
       final googleAuth = await googleUser.authentication;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -90,42 +136,77 @@ class _LoginScreenState extends State<LoginScreen>
 
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
-
       if (user == null) {
         if (mounted) setState(() => isLoading = false);
         return;
       }
 
-      final userRef = FirebaseFirestore.instance
-          .collection('user')
-          .doc(user.uid);
+      final userRef = FirebaseFirestore.instance.collection('user').doc(user.uid);
+      final snapshot = await userRef.get().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception("Network Timeout"),
+      );
 
-      final snapshot = await userRef.get();
-
-      if (!mounted) return; // Added mounted check before routing
+      if (!mounted) return;
 
       if (!snapshot.exists) {
+        String? chosenRole = await _showRoleSelectionDialog();
+        if (chosenRole == null) {
+          await user.delete(); 
+          await _googleSignIn.signOut();
+          if (mounted) setState(() => isLoading = false);
+          return;
+        }
+
+        String dbRole = _getDatabaseRole(chosenRole);
         await userRef.set({
           'uid': user.uid,
           'email': user.email,
-          'name': user.displayName ?? "New User",
-          'role': 'student',
+          'fullName': user.displayName ?? "New User",
+          'role': dbRole,
           'dept': 'IT',
+          'isApproved': false, 
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        _routeByRole('student', user.email ?? "");
-      } else {
-        _routeByRole(
-          snapshot.get('role').toString().toLowerCase(),
-          user.email ?? "",
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+          (route) => false,
         );
+        return;
+      } else {
+        final data = snapshot.data() as Map<String, dynamic>;
+        
+        // --- SMART CHECK START ---
+        bool isApproved = true; 
+        if (data.containsKey('isApproved')) {
+          var val = data['isApproved'];
+          if (val is bool) isApproved = val;
+          else if (val is String) isApproved = val.toLowerCase() == 'true';
+        }
+        // --- SMART CHECK END ---
+
+        String role = data['role']?.toString().trim().toLowerCase() ?? 'student';
+        String email = user.email ?? "";
+
+        if (!isApproved && !mentorEmails.contains(email) && role != 'hod') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+            (route) => false,
+          );
+          return; 
+        }
+
+        _routeByRole(role, email);
+        return;
       }
     } catch (e) {
-      if (mounted) _showError("Google login failed"); // Added mounted check
+      print("🚨 GOOGLE LOGIN ERROR: $e");
+      if (mounted) _showError("Login failed: $e");
     }
-
-    if (mounted) setState(() => isLoading = false); // Added mounted check
+    if (mounted) setState(() => isLoading = false);
   }
 
   /// ---------------- EMAIL LOGIN ----------------
@@ -139,7 +220,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     setState(() => isLoading = true);
-
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -147,18 +227,17 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       final user = credential.user;
-      
       if (user == null) {
         if (mounted) setState(() => isLoading = false);
         return;
       }
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('user')
-          .doc(user.uid)
-          .get();
+      final snapshot = await FirebaseFirestore.instance.collection('user').doc(user.uid).get().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception("Network Timeout"),
+      );
 
-      if (!mounted) return; // Added mounted check before using context/routing
+      if (!mounted) return;
 
       if (!snapshot.exists) {
         await _auth.signOut();
@@ -167,55 +246,59 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
-      _routeByRole(snapshot.get('role'), email);
-    } on FirebaseAuthException catch (e) {
-      if (mounted) _showError(e.message ?? "Login failed"); // Added mounted check
-    }
+      final data = snapshot.data() as Map<String, dynamic>;
+      
+      // --- SMART CHECK START ---
+      bool isApproved = true; 
+      if (data.containsKey('isApproved')) {
+        var val = data['isApproved'];
+        if (val is bool) isApproved = val;
+        else if (val is String) isApproved = val.toLowerCase() == 'true';
+      }
+      // --- SMART CHECK END ---
 
-    if (mounted) setState(() => isLoading = false); // Added mounted check
+      String role = data['role']?.toString().trim().toLowerCase() ?? 'student';
+
+      if (!isApproved && !mentorEmails.contains(email) && role != 'hod') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
+      _routeByRole(role, email);
+      return;
+    } on FirebaseAuthException catch (e) {
+      if (mounted) _showError(e.message ?? "Login failed");
+    } catch (e) {
+      print("🚨 LOGIN ERROR: $e");
+      if (mounted) _showError("Unexpected error: $e");
+    }
+    if (mounted) setState(() => isLoading = false);
   }
 
-  /// ---------------- ROUTING ----------------
   void _routeByRole(String role, String email) {
-    email = email.toLowerCase();
+    role = role.trim().toLowerCase();
+    email = email.trim().toLowerCase();
+    Widget targetScreen;
 
-    // HOD / college mentors use HodMainLayout
-    if (mentorEmails.contains(email) || role == 'hod') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HodMainLayout()),
-      );
+    if (mentorEmails.contains(email) || role == 'hod') targetScreen = const HodMainLayout();
+    else if (role == 'mentor') targetScreen = const CompanyMentorDashboardScreen();
+    else if (role == 'faculty') targetScreen = const FacultyDashboardScreen();
+    else if (role == 'student') targetScreen = const StudentMainScreen();
+    else {
+      _showError("Unknown role: $role");
+      if (mounted) setState(() => isLoading = false);
       return;
     }
 
-    // Company mentors have role "mentor" in Firestore
-    if (role == 'mentor') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CompanyMentorDashboardScreen()),
-      );
-      return;
-    }
-
-    // Faculty users
-    if (role == 'faculty') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const FacultyDashboardScreen()),
-      );
-      return;
-    }
-
-    // Students
-    if (role == 'student') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const StudentMainScreen()),
-      );
-      return;
-    }
-
-    _showError("Unknown role: $role");
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => targetScreen),
+      (route) => false,
+    );
   }
 
   void _showError(String message) {
@@ -224,178 +307,58 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  /// ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          /// PLAIN WHITE BACKGROUND
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white,
-                  Colors.grey[50] ?? Colors.white,
-                ],
-              ),
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(_animation.value, 0),
+              child: child,
+            ),
+            child: Image.asset(
+              'assets/images/collage_bg.jpg',
+              fit: BoxFit.cover,
+              height: double.infinity,
+              width: double.infinity,
             ),
           ),
-
-          /// LOGIN FORM
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ScaleTransition(
-                scale: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Column(
-                    children: [
-                      Icon(Icons.school, size: 70, color: primaryBlue),
-                      const SizedBox(height: 10),
-
-                      Text(
-                        "Intern Tracker",
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: primaryBlue,
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            /// EMAIL
-                            TextField(
-                              controller: emailController,
-                              decoration: InputDecoration(
-                                labelText: "Email",
-                                prefixIcon: Icon(Icons.person, color: primaryBlue),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            /// PASSWORD
-                            TextField(
-                              controller: passwordController,
-                              obscureText: obscurePassword,
-                              decoration: InputDecoration(
-                                labelText: "Password",
-                                prefixIcon: Icon(Icons.lock, color: primaryBlue),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    obscurePassword
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => obscurePassword = !obscurePassword,
-                                  ),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            /// LOGIN BUTTON
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: isLoading ? null : handleLogin,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryBlue,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                child: isLoading
-                                    ? const CircularProgressIndicator(
-                                        color: Colors.white,
-                                      )
-                                    : const Text(
-                                        "Login",
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            /// GOOGLE LOGIN
-                            OutlinedButton.icon(
-                              onPressed: isLoading ? null : signInWithGoogle,
-                              icon: Image.asset(
-                                'assets/images/google.png',
-                                height: 22,
-                              ),
-                              label: const Text("Continue with Google"),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 48),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      /// SIGN UP
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CreateAccountScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text("New user? "),
-                            Text(
-                              "Sign Up",
-                              style: TextStyle(
-                                color: primaryBlue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+              child: Column(
+                children: [
+                  Icon(Icons.school, size: 70, color: primaryBlue),
+                  const SizedBox(height: 10),
+                  Text("Intern Tracker", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: primaryBlue)),
+                  const SizedBox(height: 40),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(20)),
+                    child: Column(
+                      children: [
+                        TextField(controller: emailController, decoration: InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.person, color: primaryBlue), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+                        const SizedBox(height: 16),
+                        TextField(controller: passwordController, obscureText: obscurePassword, decoration: InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock, color: primaryBlue), suffixIcon: IconButton(icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => obscurePassword = !obscurePassword)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+                        const SizedBox(height: 24),
+                        SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : handleLogin, style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, padding: const EdgeInsets.symmetric(vertical: 14)), child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Login", style: TextStyle(color: Colors.white)))),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(onPressed: isLoading ? null : signInWithGoogle, icon: Image.asset('assets/images/google.png', height: 22), label: const Text("Continue with Google"), style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48), backgroundColor: Colors.white)),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateAccountScreen())),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), borderRadius: BorderRadius.circular(20)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [const Text("New user? ", style: TextStyle(fontWeight: FontWeight.bold)), Text("Sign Up", style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold))]),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

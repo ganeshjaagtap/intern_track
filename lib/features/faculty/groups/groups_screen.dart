@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/features/faculty/dashboard/models/student_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_2/features/faculty/groups/group_model.dart';
 import 'group_details_screen.dart';
 
@@ -10,52 +11,40 @@ class GroupsScreen extends StatefulWidget {
   State<GroupsScreen> createState() => _GroupsScreenState();
 }
 
-class _GroupsScreenState extends State<GroupsScreen>
-    with AutomaticKeepAliveClientMixin {
-
+class _GroupsScreenState extends State<GroupsScreen> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  List<GroupModel> groups = [];
+  final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-  List<StudentModel> allStudents = List.generate(
-    73,
-    (index) {
-      final enrollment = (237001 + index).toString();
-      return StudentModel(
-        enrollment: enrollment,
-        name: "Student ${index + 1}",
-      );
-    },
-  );
-
-  void createGroup(String name) {
-    setState(() {
-      groups.add(
-        GroupModel(
-          id: DateTime.now().toString(),
-          name: name,
-          students: [],
-        ),
-      );
-    });
+  Future<void> createGroup(String name) async {
+    try {
+      final docRef = FirebaseFirestore.instance.collection('groups').doc();
+      await docRef.set({
+        'groupId': docRef.id,
+        'groupName': name,
+        'createdBy': currentUid,
+        'studentIds': [],
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint("Error creating group: $e");
+    }
   }
 
   void showCreateDialog() {
     TextEditingController controller = TextEditingController();
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Create Group"),
+        title: const Text("New Project Group"),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: "Enter Group Name",
-          ),
+          decoration: const InputDecoration(hintText: "Enter Group Name"),
         ),
         actions: [
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) {
                 createGroup(controller.text);
@@ -71,65 +60,54 @@ class _GroupsScreenState extends State<GroupsScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // important for keepAlive
-
+    super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F2),
-
-      /// ✅ AppBar Added (No Back Button)
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF6EA8DC),
-        elevation: 0,
-        title: const Text(
-          "GROUPS",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text("MY GROUPS", style: TextStyle(fontWeight: FontWeight.bold)),
       ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('groups')
+            .where('createdBy', isEqualTo: currentUid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) return const Center(child: Text("No groups created yet."));
 
-      body: groups.isEmpty
-          ? const Center(
-              child: Text(
-                "No Groups Created",
-                style: TextStyle(fontSize: 16),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: groups.length,
-              itemBuilder: (context, index) {
-                final group = groups[index];
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final group = GroupModel(
+                id: docs[index].id,
+                name: data['groupName'] ?? "Unnamed",
+                students: List<String>.from(data['studentIds'] ?? []),
+              );
 
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    title: Text(group.name),
-                    subtitle:
-                        Text("${group.students.length}/5 students"),
-                    trailing: const Icon(Icons.arrow_forward),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GroupDetailsScreen(
-                            group: group,
-                            allGroups: groups,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-
+              return Card(
+                child: ListTile(
+                  title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("${group.students.length} Students assigned"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => GroupDetailsScreen(group: group),
+                  )),
+                ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF6EA8DC),
         onPressed: showCreateDialog,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

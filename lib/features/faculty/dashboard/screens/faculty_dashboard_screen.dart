@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ADDED THIS
+
 import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/company_list_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_notification_screen.dart';
@@ -20,8 +22,47 @@ class FacultyDashboardScreen extends StatefulWidget {
 }
 
 class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
-
   int _selectedIndex = 0;
+
+  // --- DYNAMIC DATA VARIABLES ---
+  bool isLoading = true;
+  String facultyName = "Faculty";
+  String department = "";
+  String college = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFacultyData();
+  }
+
+  /// LOAD FACULTY DATA FROM FIRESTORE
+  Future<void> _loadFacultyData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection("user").doc(user.uid).get();
+
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              // Safely pull data, use empty strings as fallbacks
+              facultyName = data["fullName"] ?? "Faculty";
+              department = data["dept"] ?? "";
+              college = data["college"] ?? "";
+              isLoading = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print("Error loading faculty data: $e");
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   void _onTabSelected(int index) {
     setState(() {
@@ -36,7 +77,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       case 2:
         return const FacultyCalendarScreen();
       case 3:
-        return const FacultySettingsScreen();
+        return const FacultySettingsScreen(); // Changed to match your import, make sure the name matches the actual class!
       default:
         return _buildDashboardContent();
     }
@@ -66,17 +107,13 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
           "INTERN TRACKER",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-
         actions: [
-
           /// 🔔 REALTIME NOTIFICATION BADGE
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection("notifications")
                 .snapshots(),
-
             builder: (context, snapshot) {
-
               int count = 0;
 
               if (snapshot.hasData) {
@@ -85,7 +122,6 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
               return Stack(
                 children: [
-
                   IconButton(
                     icon: const Icon(Icons.notifications_none),
                     onPressed: () {
@@ -128,245 +164,250 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       ),
 
       /// BODY
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            const Text(
-              "Welcome back, Faculty!",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            /// STATS
-            Row(
-              children: [
-
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const StudentListScreen(),
-                        ),
-                      );
-                    },
-                    child: MiniStatCard(
-                      icon: Icons.group,
-                      value: "42",
-                      label: "Students",
-                      bg: const Color(0xFFD9ECFF),
-                      iconColor: Colors.blue,
+      body: isLoading 
+          ? const Center(child: CircularProgressIndicator(color: Colors.blue))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// DYNAMIC WELCOME MESSAGE
+                  Text(
+                    "Welcome back, $facultyName!",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
 
-                const SizedBox(width: 12),
+                  const SizedBox(height: 12),
 
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const CompaniesScreen(),
-                        ),
-                      );
-                    },
-                    child: MiniStatCard(
-                      icon: Icons.work,
-                      value: "5",
-                      label: "Internships",
-                      bg: const Color(0xFFFFF2CC),
-                      iconColor: Colors.orange,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AssignTaskScreen(),
-                        ),
-                      );
-                    },
-                    child: MiniStatCard(
-                      icon: Icons.assignment,
-                      value: "18",
-                      label: "Reports",
-                      bg: const Color(0xFFFFE6D9),
-                      iconColor: Colors.deepOrange,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AssignTaskScreen(),
-                        ),
-                      );
-                    },
-                    child: MiniStatCard(
-                      icon: Icons.pending_actions,
-                      value: "6",
-                      label: "Pending",
-                      bg: const Color(0xFFDFF5EA),
-                      iconColor: Colors.green,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            const Text(
-              "Recent Activity",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 12),
-
-            const FacultyActionCard(
-              icon: Icons.person,
-              title: "View Mentors",
-              subtitle: "Manage assigned mentors",
-            ),
-
-            const SizedBox(height: 12),
-
-            const FacultyActionCard(
-              icon: Icons.work_outline,
-              title: "Internship Details",
-              subtitle: "View and update internships",
-            ),
-
-            const SizedBox(height: 20),
-
-            /// ASSIGN TASK CARD
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const AssignTaskScreen(),
-                  ),
-                );
-              },
-
-              child: Container(
-                padding: const EdgeInsets.all(18),
-
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF60B5FF),
-                      Color(0xFF5EF2D5),
-                    ],
-                  ),
-
-                  borderRadius: BorderRadius.circular(16),
-
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
-                ),
-
-                child: Row(
-                  children: [
-
+                  /// MISSING PROFILE WARNING (Only shows if fields are empty)
+                  if (department.isEmpty || college.isEmpty) ...[
                     Container(
-                      padding: const EdgeInsets.all(10),
-
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
                       ),
-
-                      child: const Icon(
-                        Icons.assignment_add,
-                        color: Color(0xFF60B5FF),
-                        size: 26,
-                      ),
-                    ),
-
-                    const SizedBox(width: 14),
-
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: const Row(
                         children: [
-                          Text(
-                            "Assign Task",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "Assign tasks to student groups",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Please go to Settings to complete your profile.",
+                              style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w500),
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                    const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 18,
-                      color: Colors.white,
-                    )
+                    const SizedBox(height: 18),
                   ],
-                ),
+
+                  /// STATS
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const StudentListScreen(),
+                              ),
+                            );
+                          },
+                          child: MiniStatCard(
+                            icon: Icons.group,
+                            value: "42",
+                            label: "Students",
+                            bg: const Color(0xFFD9ECFF),
+                            iconColor: Colors.blue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CompaniesScreen(),
+                              ),
+                            );
+                          },
+                          child: MiniStatCard(
+                            icon: Icons.work,
+                            value: "5",
+                            label: "Internships",
+                            bg: const Color(0xFFFFF2CC),
+                            iconColor: Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AssignTaskScreen(),
+                              ),
+                            );
+                          },
+                          child: MiniStatCard(
+                            icon: Icons.assignment,
+                            value: "18",
+                            label: "Reports",
+                            bg: const Color(0xFFFFE6D9),
+                            iconColor: Colors.deepOrange,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AssignTaskScreen(),
+                              ),
+                            );
+                          },
+                          child: MiniStatCard(
+                            icon: Icons.pending_actions,
+                            value: "6",
+                            label: "Pending",
+                            bg: const Color(0xFFDFF5EA),
+                            iconColor: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const Text(
+                    "Recent Activity",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const FacultyActionCard(
+                    icon: Icons.person,
+                    title: "View Mentors",
+                    subtitle: "Manage assigned mentors",
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const FacultyActionCard(
+                    icon: Icons.work_outline,
+                    title: "Internship Details",
+                    subtitle: "View and update internships",
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// ASSIGN TASK CARD
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AssignTaskScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF60B5FF),
+                            Color(0xFF5EF2D5),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_add,
+                              color: Color(0xFF60B5FF),
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Assign Task",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  "Assign tasks to student groups",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 18,
+                            color: Colors.white,
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
               ),
             ),
-
-            const SizedBox(height: 60),
-          ],
-        ),
-      ),
     );
   }
 }

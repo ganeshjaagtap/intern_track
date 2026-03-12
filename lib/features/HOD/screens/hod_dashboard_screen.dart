@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:flutter_application_2/features/HOD/report/hod_student_list_screen.dart';
 import 'package:flutter_application_2/features/HOD/screens/report/hod_student_list_screen.dart';
 import 'student_list_screen.dart';
 import 'active_internships_screen.dart';
@@ -45,6 +46,14 @@ class MentorDashboardScreen extends StatelessWidget {
 class _StatsSection extends StatelessWidget {
   const _StatsSection();
 
+  // ✅ Helper function to safely check the boolean value from Firestore
+  bool _isUserApproved(dynamic isApproved) {
+    if (isApproved == null) return false;
+    if (isApproved is bool) return isApproved;
+    if (isApproved is String) return isApproved.toLowerCase() == 'true';
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -54,23 +63,23 @@ class _StatsSection extends StatelessWidget {
           .where('dept', isEqualTo: 'IT')
           .snapshots(),
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final students = snapshot.data!.docs;
-
         int total = students.length;
 
+        // ✅ Updated with safe check
         int active = students.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return data['isApproved'] == true;
+          return _isUserApproved(data['isApproved']);
         }).length;
 
+        // ✅ Updated with safe check
         int pending = students.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return !(data['isApproved'] ?? false);
+          return !_isUserApproved(data['isApproved']);
         }).length;
 
         return Column(
@@ -162,8 +171,7 @@ class _StatsSection extends StatelessWidget {
             Icon(icon, color: color),
             const SizedBox(height: 15),
             Text(value,
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             Text(title),
           ],
         ),
@@ -175,6 +183,14 @@ class _StatsSection extends StatelessWidget {
 class _NeedsAttentionCard extends StatelessWidget {
   const _NeedsAttentionCard();
 
+  // ✅ Helper function duplicated here for safety
+  bool _isUserApproved(dynamic isApproved) {
+    if (isApproved == null) return false;
+    if (isApproved is bool) return isApproved;
+    if (isApproved is String) return isApproved.toLowerCase() == 'true';
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -183,16 +199,16 @@ class _NeedsAttentionCard extends StatelessWidget {
           .where('role', isEqualTo: 'student')
           .snapshots(),
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
 
         final docs = snapshot.data!.docs;
 
+        // ✅ Updated with safe check
         int pending = docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return !(data['isApproved'] ?? false);
+          return !_isUserApproved(data['isApproved']);
         }).length;
 
         if (pending == 0) return const SizedBox.shrink();
@@ -232,23 +248,19 @@ class _QuickActions extends StatelessWidget {
                 builder: (context) => const ReviewApprovalsScreen()),
           ),
         ),
+        const SizedBox(height: 10), // Added spacing for cleaner look
         MentorActionTile(
-  icon: Icons.bar_chart_rounded,
-  title: "View Reports",
-
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const HodStudentListScreen(),
-      ),
-    );
-  },
-),
-       // const MentorActionTile(
-       //   icon: Icons.chat_bubble_outline,
-       //   title: "Message Students",
-      //  ),
+          icon: Icons.bar_chart_rounded,
+          title: "View Reports",
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HodStudentListScreen(),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -270,22 +282,23 @@ class MentorActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-
       child: Container(
         padding: const EdgeInsets.all(16),
-
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            )
+          ],
         ),
-
         child: Row(
           children: [
-
             Icon(icon, size: 28, color: Colors.blue),
-
             const SizedBox(width: 12),
-
             Text(
               title,
               style: const TextStyle(
