@@ -25,6 +25,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   bool isSubmitting = false;
 
   Map<String,dynamic>? studentData;
+  String? companyMentorName;
+  String? facultyMentorName;
 
   final TextEditingController summaryCtrl = TextEditingController();
   final TextEditingController workDoneCtrl = TextEditingController();
@@ -44,7 +46,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     loadStudentData();
   }
 
-  /// 🔹 Load student info from Firestore
+  @override
+  void dispose() {
+    summaryCtrl.dispose();
+    workDoneCtrl.dispose();
+    learningCtrl.dispose();
+    issuesCtrl.dispose();
+    nextPlanCtrl.dispose();
+    super.dispose();
+  }
+
+  /// 🔹 Load student info and mentor data from Firestore
   Future<void> loadStudentData() async {
 
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -55,7 +67,11 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         .get();
 
     setState(() {
-      studentData = doc.data();
+      studentData = doc.data() ?? {};
+      
+      // Get mentor names from Firestore using correct field names
+      companyMentorName = studentData?["companyMentor"] ?? "Not assigned";
+      facultyMentorName = studentData?["collegeMentor"] ?? "Not assigned";
     });
   }
 
@@ -126,6 +142,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         "enrollmentNo": studentData?["enrollmentNo"] ?? "",
         "department": studentData?["dept"] ?? "",
         "role": studentData?["internshipRole"] ?? "",
+
+        "companyMentorName": companyMentorName,
+        "facultyMentorName": facultyMentorName,
 
         "title": "$selectedWeek Progress Report",
         "reportType": reportType,
@@ -201,6 +220,25 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                     _infoRow("Department", studentData!["dept"] ?? "-"),
                     _infoRow("Role", studentData!["internshipRole"] ?? "-"),
                     _infoRow("Enrollment No", studentData!["enrollmentNo"] ?? "-"),
+
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              /// MENTOR INFORMATION
+              _sectionTitle("Mentor Information"),
+
+              _card(
+                Column(
+                  children: [
+
+                    _infoRow("Faculty Mentor", facultyMentorName ?? "Not assigned"),
+
+                    const SizedBox(height: 8),
+
+                    _infoRow("Company Mentor", companyMentorName ?? "Not assigned"),
 
                   ],
                 ),
@@ -459,14 +497,14 @@ class _infoRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
             ),
           ),
 
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Color(0xFF424242)),
             ),
           ),
         ],

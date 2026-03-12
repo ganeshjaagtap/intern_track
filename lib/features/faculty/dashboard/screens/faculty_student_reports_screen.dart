@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'hod_view_report_screen.dart';
+import 'package:flutter_application_2/features/HOD/screens/report/hod_view_report_screen.dart';
 
-class HodStudentReportsScreen extends StatelessWidget {
+class FacultyStudentReportsScreen extends StatelessWidget {
 
   final String studentId;
   final String studentName;
 
-  const HodStudentReportsScreen({
+  const FacultyStudentReportsScreen({
     super.key,
     required this.studentId,
     required this.studentName,

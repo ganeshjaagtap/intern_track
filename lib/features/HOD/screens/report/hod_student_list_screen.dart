@@ -42,6 +42,9 @@ class HodStudentListScreen extends StatelessWidget {
 
               final name = data["fullName"] ?? "Student";
               final enrollment = data["enrollmentNo"] ?? "";
+              
+              // Use uid field if available (for matching with reports), otherwise use document id
+              final studentId = data["uid"] ?? students[index].id;
 
               return ListTile(
 
@@ -62,7 +65,7 @@ class HodStudentListScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => HodStudentReportsScreen(
-                        studentId: students[index].id,
+                        studentId: studentId,
                         studentName: name,
                       ),
                     ),

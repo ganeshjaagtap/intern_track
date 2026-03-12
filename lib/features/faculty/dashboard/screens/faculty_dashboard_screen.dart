@@ -6,6 +6,7 @@ import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.
 import 'package:flutter_application_2/features/faculty/dashboard/screens/company_list_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_notification_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/student_list.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_student_list_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/widgets/Faculty_action_card.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/widgets/faculty_stats_card.dart';
 import 'package:flutter_application_2/features/faculty/calendar/faculty_calendar_screen.dart';
@@ -266,7 +267,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AssignTaskScreen(),
+                                builder: (context) =>
+                                    const FacultyStudentListScreen(),
                               ),
                             );
                           },

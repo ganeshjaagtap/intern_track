@@ -18,9 +18,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+    with TickerProviderStateMixin {
+  late AnimationController _floatController;
+  late Animation<double> _floatAnimation;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -38,15 +38,15 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
+    _floatController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 20),
-    )..repeat();
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
 
-    _animation = Tween<double>(
-      begin: -200,
-      end: 200,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
+    _floatAnimation = Tween<double>(
+      begin: 0,
+      end: 15,
+    ).animate(CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
 
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) setState(() => startAnimation = true);
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _floatController.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -312,18 +312,8 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       body: Stack(
         children: [
-          AnimatedBuilder(
-            animation: _animation,
-            builder: (_, child) => Transform.translate(
-              offset: Offset(_animation.value, 0),
-              child: child,
-            ),
-            child: Image.asset(
-              'assets/images/collage_bg.jpg',
-              fit: BoxFit.cover,
-              height: double.infinity,
-              width: double.infinity,
-            ),
+          Container(
+            color: const Color(0xFFF8F9FA),
           ),
           Center(
             child: SingleChildScrollView(
@@ -336,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 40),
                   Container(
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: const Color(0xFFBBDEFB), borderRadius: BorderRadius.circular(20)),
                     child: Column(
                       children: [
                         TextField(controller: emailController, decoration: InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.person, color: primaryBlue), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
@@ -353,9 +343,27 @@ class _LoginScreenState extends State<LoginScreen>
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateAccountScreen())),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), borderRadius: BorderRadius.circular(20)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [const Text("New user? ", style: TextStyle(fontWeight: FontWeight.bold)), Text("Sign Up", style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold))]),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(color: primaryBlue.withOpacity(0.5), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryBlue.withOpacity(0.2),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("New user? ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text("Sign Up", style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 15)),
+                        ],
+                      ),
                     ),
                   ),
                 ],

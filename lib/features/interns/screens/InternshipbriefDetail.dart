@@ -54,10 +54,26 @@ class InternshipBriefDetailsScreen extends StatelessWidget {
           String duration = "-";
 
           if (start != null && end != null) {
-            final startDate = (start as Timestamp).toDate();
-            final endDate = (end as Timestamp).toDate();
-            duration =
-                "${startDate.day}/${startDate.month}/${startDate.year} - ${endDate.day}/${endDate.month}/${endDate.year}";
+            DateTime? startDate;
+            DateTime? endDate;
+            
+            // Handle Timestamp or String types
+            if (start is Timestamp) {
+              startDate = start.toDate();
+            } else if (start is String) {
+              startDate = DateTime.tryParse(start);
+            }
+            
+            if (end is Timestamp) {
+              endDate = end.toDate();
+            } else if (end is String) {
+              endDate = DateTime.tryParse(end);
+            }
+            
+            if (startDate != null && endDate != null) {
+              duration =
+                  "${startDate.day}/${startDate.month}/${startDate.year} - ${endDate.day}/${endDate.month}/${endDate.year}";
+            }
           }
 
           return Column(
