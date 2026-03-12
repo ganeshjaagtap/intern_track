@@ -24,12 +24,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
     DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
 
-    // 1. Add UID to Group
     batch.update(groupRef, {
       'studentIds': FieldValue.arrayUnion([studentUid]),
     });
 
-    // 2. Link Group details to Student profile
     batch.update(studentRef, {
       'assignedGroupId': widget.group.id,
       'assignedGroupName': widget.group.name,
@@ -37,7 +35,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     try {
       await batch.commit();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$studentName added to group!")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("$studentName added to group!")),
+        );
+      }
     } catch (e) {
       debugPrint("Add Error: $e");
     }
@@ -49,44 +51,106 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
     DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
 
-    batch.update(groupRef, {'studentIds': FieldValue.arrayRemove([studentUid])});
+    batch.update(groupRef, {
+      'studentIds': FieldValue.arrayRemove([studentUid])
+    });
+    
     batch.update(studentRef, {
       'assignedGroupId': FieldValue.delete(),
       'assignedGroupName': FieldValue.delete(),
     });
 
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (e) {
+      debugPrint("Remove Error: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.group.name), backgroundColor: const Color(0xFF6EA8DC)),
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: Text(widget.group.name),
+        backgroundColor: const Color(0xFF6EA8DC),
+        elevation: 0,
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _firestore.collection('groups').doc(widget.group.id).snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          // 1. Check for connection errors
+          if (snapshot.hasError) {
+            return const Center(child: Text("Something went wrong"));
+          }
+
+          // 2. Handle Loading State
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // 3. ✅ CRITICAL NULL CHECK: Fixes "null is not a subtype of Map"
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("Group no longer exists."));
+          }
+
+          // 4. Safe Data Extraction
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          if (data == null) return const Center(child: Text("No data found"));
+
           final List<String> memberIds = List<String>.from(data['studentIds'] ?? []);
 
-          if (memberIds.isEmpty) return const Center(child: Text("No students in this group."));
+          if (memberIds.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.group_add_outlined, size: 80, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "This group is empty",
+                    style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
+                  ),
+                  const Text("Click 'Add Member' to start building your team."),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(12),
             itemCount: memberIds.length,
             itemBuilder: (context, index) {
               return FutureBuilder<DocumentSnapshot>(
                 future: _firestore.collection('user').doc(memberIds[index]).get(),
                 builder: (context, userSnap) {
-                  if (!userSnap.hasData) return const SizedBox();
-                  final userData = userSnap.data!.data() as Map<String, dynamic>;
-                  return ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(userData['fullName'] ?? "Unknown"),
-                    subtitle: Text(userData['enrollmentNo'] ?? ""),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle, color: Colors.red),
-                      onPressed: () => _removeStudent(memberIds[index]),
+                  if (!userSnap.hasData) {
+                    return const Card(child: ListTile(title: Text("Loading member...")));
+                  }
+                  
+                  if (!userSnap.data!.exists) return const SizedBox();
+
+                  final userData = userSnap.data!.data() as Map<String, dynamic>?;
+                  if (userData == null) return const SizedBox();
+
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFF6EA8DC).withOpacity(0.2),
+                        child: const Icon(Icons.person, color: Color(0xFF6EA8DC)),
+                      ),
+                      title: Text(
+                        userData['fullName'] ?? "Unnamed Student",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text("Enrollment: ${userData['enrollmentNo'] ?? 'N/A'}"),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                        onPressed: () => _removeStudent(memberIds[index]),
+                      ),
                     ),
                   );
                 },
@@ -100,8 +164,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         icon: const Icon(Icons.person_add),
         backgroundColor: const Color(0xFF6EA8DC),
         onPressed: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectStudentScreen()));
-          if (result != null) _addStudent(result);
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SelectStudentScreen()),
+          );
+          if (result != null) _addStudent(result as Map<String, dynamic>);
         },
       ),
     );
