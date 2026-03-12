@@ -21,8 +21,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     final String studentName = studentData['name'];
 
     WriteBatch batch = _firestore.batch();
-    DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
-    DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
+    DocumentReference groupRef = _firestore
+        .collection('groups')
+        .doc(widget.group.id);
+    DocumentReference studentRef = _firestore
+        .collection('user')
+        .doc(studentUid);
 
     // 1. Add UID to Group
     batch.update(groupRef, {
@@ -37,7 +41,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
     try {
       await batch.commit();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$studentName added to group!")));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("$studentName added to group!")));
     } catch (e) {
       debugPrint("Add Error: $e");
     }
@@ -46,10 +53,16 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   /// ✅ REMOVE STUDENT: Clears data from both locations
   Future<void> _removeStudent(String studentUid) async {
     WriteBatch batch = _firestore.batch();
-    DocumentReference groupRef = _firestore.collection('groups').doc(widget.group.id);
-    DocumentReference studentRef = _firestore.collection('user').doc(studentUid);
+    DocumentReference groupRef = _firestore
+        .collection('groups')
+        .doc(widget.group.id);
+    DocumentReference studentRef = _firestore
+        .collection('user')
+        .doc(studentUid);
 
-    batch.update(groupRef, {'studentIds': FieldValue.arrayRemove([studentUid])});
+    batch.update(groupRef, {
+      'studentIds': FieldValue.arrayRemove([studentUid]),
+    });
     batch.update(studentRef, {
       'assignedGroupId': FieldValue.delete(),
       'assignedGroupName': FieldValue.delete(),
@@ -61,25 +74,55 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.group.name), backgroundColor: const Color(0xFF6EA8DC)),
+      appBar: AppBar(
+        title: Text(widget.group.name),
+        backgroundColor: const Color(0xFF6EA8DC),
+      ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: _firestore.collection('groups').doc(widget.group.id).snapshots(),
+        stream: _firestore
+            .collection('groups')
+            .doc(widget.group.id)
+            .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final List<String> memberIds = List<String>.from(data['studentIds'] ?? []);
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
 
-          if (memberIds.isEmpty) return const Center(child: Text("No students in this group."));
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final List<String> memberIds = List<String>.from(
+            data['studentIds'] ?? [],
+          );
+
+          if (memberIds.isEmpty)
+            return const Center(child: Text("No students in this group."));
 
           return ListView.builder(
             itemCount: memberIds.length,
             itemBuilder: (context, index) {
               return FutureBuilder<DocumentSnapshot>(
-                future: _firestore.collection('user').doc(memberIds[index]).get(),
+                future: _firestore
+                    .collection('user')
+                    .doc(memberIds[index])
+                    .get(),
                 builder: (context, userSnap) {
-                  if (!userSnap.hasData) return const SizedBox();
-                  final userData = userSnap.data!.data() as Map<String, dynamic>;
+                  if (userSnap.connectionState == ConnectionState.waiting) {
+                    return const SizedBox();
+                  }
+
+                  if (userSnap.hasError) {
+                    return const SizedBox();
+                  }
+
+                  if (!userSnap.hasData || !userSnap.data!.exists) {
+                    return const SizedBox();
+                  }
+
+                  final data = userSnap.data!.data();
+                  if (data == null) {
+                    return const SizedBox();
+                  }
+
+                  final userData = data as Map<String, dynamic>;
+
                   return ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.person)),
                     title: Text(userData['fullName'] ?? "Unknown"),
@@ -100,7 +143,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         icon: const Icon(Icons.person_add),
         backgroundColor: const Color(0xFF6EA8DC),
         onPressed: () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectStudentScreen()));
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SelectStudentScreen()),
+          );
           if (result != null) _addStudent(result);
         },
       ),
