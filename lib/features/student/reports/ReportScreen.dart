@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'ViewReportScreen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import 'SubmitReportScreen.dart';
+import 'ViewReportScreen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({Key? key}) : super(key: key);
@@ -11,8 +13,8 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  int selectedMonth = 1;
-  int selectedYear = 2026;
+  int selectedMonth = DateTime.now().month;
+  int selectedYear = DateTime.now().year;
 
   final List<String> months = const [
     "January",
@@ -31,11 +33,12 @@ class _ReportScreenState extends State<ReportScreen> {
 
   final List<int> years = [2025, 2026, 2027];
 
+  String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? "";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF6BB6FF),
         title: const Text(
@@ -43,10 +46,8 @@ class _ReportScreenState extends State<ReportScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-
       body: Column(
         children: [
-          /// FILTER SECTION
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -71,9 +72,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: _dropdown(
                     DropdownButton<int>(
@@ -96,15 +95,12 @@ class _ReportScreenState extends State<ReportScreen> {
               ],
             ),
           ),
-
-          /// REPORT LIST FROM FIREBASE
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("reports")
-                  .orderBy("createdAt", descending: true)
+                  .where("studentId", isEqualTo: _currentUid)
                   .snapshots(),
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -114,41 +110,59 @@ class _ReportScreenState extends State<ReportScreen> {
                   return const Center(child: Text("No reports submitted yet"));
                 }
 
-                final docs = snapshot.data!.docs;
+                final docs = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final date = _extractDate(data);
+                  if (date == null) return true;
+                  return date.month == selectedMonth && date.year == selectedYear;
+                }).toList();
+
+                docs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aDate = _extractDate(aData) ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  final bDate = _extractDate(bData) ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  return bDate.compareTo(aDate);
+                });
+
+                if (docs.isEmpty) {
+                  return const Center(child: Text("No reports found for the selected month"));
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-
                   itemCount: docs.length,
-
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
+                    final rejectionReason =
+                        (data["rejectionReason"] ?? "").toString().trim();
 
                     return _ReportCard(
                       reportId: docs[index].id,
                       title: data["title"] ?? "",
                       period: data["period"] ?? "",
-                      mentor: data["mentor"] ?? "",
-                      status: data["status"] ?? "pending",
+                      mentor: data["facultyMentorName"] ??
+                          data["mentor"] ??
+                          data["companyMentorName"] ??
+                          "",
+                      status: (data["status"] ?? "pending").toString(),
+                      rejectionReason: rejectionReason,
+                      submittedAt: _extractDate(data),
                     );
                   },
                 );
               },
             ),
           ),
-
-          /// SUBMIT REPORT BUTTON
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
-
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6BB6FF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -157,7 +171,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   );
                 },
-
                 icon: const Icon(Icons.upload_file),
                 label: const Text("Submit New Report"),
               ),
@@ -166,6 +179,14 @@ class _ReportScreenState extends State<ReportScreen> {
         ],
       ),
     );
+  }
+
+  DateTime? _extractDate(Map<String, dynamic> data) {
+    final dynamic raw = data["submittedAt"] ?? data["createdAt"];
+    if (raw is Timestamp) {
+      return raw.toDate();
+    }
+    return null;
   }
 
   Widget _dropdown(Widget child) {
@@ -180,13 +201,14 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 }
 
-/// REPORT CARD
 class _ReportCard extends StatelessWidget {
   final String reportId;
   final String title;
   final String period;
   final String mentor;
   final String status;
+  final String rejectionReason;
+  final DateTime? submittedAt;
 
   const _ReportCard({
     required this.reportId,
@@ -194,32 +216,33 @@ class _ReportCard extends StatelessWidget {
     required this.period,
     required this.mentor,
     required this.status,
+    required this.rejectionReason,
+    required this.submittedAt,
   });
 
   Color statusColor() {
-    if (status == "approved") return Colors.green;
-    if (status == "pending") return Colors.orange;
-
-    return Colors.blue;
+    switch (status.toLowerCase()) {
+      case "approved":
+        return Colors.green;
+      case "rejected":
+        return Colors.red;
+      default:
+        return Colors.orange;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-
       padding: const EdgeInsets.all(16),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          /// TITLE + STATUS
           Row(
             children: [
               Expanded(
@@ -228,18 +251,15 @@ class _ReportCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 4,
                 ),
-
                 decoration: BoxDecoration(
                   color: statusColor().withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-
                 child: Text(
                   status.toUpperCase(),
                   style: TextStyle(
@@ -251,31 +271,50 @@ class _ReportCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
-          /// PERIOD
           Text(period, style: const TextStyle(color: Colors.grey)),
-
           const SizedBox(height: 8),
-
-          /// MENTOR
           Row(
             children: [
               const Icon(Icons.person, size: 16, color: Colors.grey),
-
               const SizedBox(width: 4),
-
-              Text(mentor, style: const TextStyle(color: Colors.grey)),
+              Expanded(
+                child: Text(
+                  mentor.isEmpty ? "Mentor not assigned" : mentor,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
             ],
           ),
-
+          if (submittedAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              "Submitted: ${submittedAt!.day}/${submittedAt!.month}/${submittedAt!.year}",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+          if (status.toLowerCase() == "rejected" && rejectionReason.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                "Rejection reason: $rejectionReason",
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
-
-          /// ACTION BUTTONS
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
-
             children: [
               TextButton(
                 onPressed: () {
@@ -288,7 +327,6 @@ class _ReportCard extends StatelessWidget {
                 },
                 child: const Text("View"),
               ),
-
               TextButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(

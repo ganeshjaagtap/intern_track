@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class HodViewReportScreen extends StatelessWidget {
-
   final String reportId;
 
   const HodViewReportScreen({
@@ -12,24 +11,16 @@ class HodViewReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      
       appBar: AppBar(
         title: const Text("Report Details"),
         backgroundColor: const Color(0xFF6BB6FF),
         elevation: 0,
       ),
-
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection("reports")
-            .doc(reportId)
-            .get(),
-
+        future: FirebaseFirestore.instance.collection("reports").doc(reportId).get(),
         builder: (context, snapshot) {
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -47,25 +38,19 @@ class HodViewReportScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                /// HEADER SECTION
                 _buildHeaderCard(data),
                 const SizedBox(height: 20),
-
-                /// STUDENT INFO SECTION
                 _buildSectionTitle("Student Information"),
                 _buildInfoCard([
-                  _buildInfoRow("Name", data["studentName"] ?? "—"),
+                  _buildInfoRow("Name", data["studentName"] ?? "-"),
                   _buildDivider(),
-                  _buildInfoRow("Enrollment", data["enrollmentNo"] ?? "—"),
+                  _buildInfoRow("Enrollment", data["enrollmentNo"] ?? "-"),
                   _buildDivider(),
-                  _buildInfoRow("Department", data["department"] ?? "—"),
+                  _buildInfoRow("Department", data["department"] ?? "-"),
                   _buildDivider(),
-                  _buildInfoRow("Role", data["role"] ?? "—"),
+                  _buildInfoRow("Role", data["role"] ?? "-"),
                 ]),
                 const SizedBox(height: 20),
-
-                /// MENTORS SECTION
                 _buildSectionTitle("Assigned Mentors"),
                 _buildInfoCard([
                   _buildInfoRowWithIcon(
@@ -81,82 +66,102 @@ class HodViewReportScreen extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 20),
-
-                /// REPORT DETAILS
-                _buildSectionTitle("Report Period"),
+                _buildSectionTitle("Report Details"),
                 _buildInfoCard([
-                  _buildInfoRowWithIcon(
-                    Icons.date_range,
-                    "Period",
-                    data["period"] ?? "—",
+                  _buildInfoRow("Title", data["title"] ?? "-"),
+                  _buildDivider(),
+                  _buildInfoRow("Report Type", data["reportType"] ?? "-"),
+                  _buildDivider(),
+                  _buildInfoRow("Week", data["week"] ?? "-"),
+                  _buildDivider(),
+                  _buildInfoRow("Period", data["period"] ?? "-"),
+                  _buildDivider(),
+                  _buildInfoRow(
+                    "Submitted On",
+                    _formatDate(data["submittedAt"] ?? data["createdAt"]),
                   ),
                   _buildDivider(),
-                  _buildInfoRowWithIcon(
-                    Icons.assignment,
-                    "Type",
-                    data["reportType"] ?? "—",
-                  ),
-                  _buildDivider(),
-                  _buildInfoRowWithIcon(
-                    Icons.calendar_month,
-                    "Week",
-                    data["week"] ?? "—",
+                  _buildInfoRow(
+                    "Attachment",
+                    (data["fileName"] ?? "").toString().trim().isEmpty
+                        ? "No file selected"
+                        : data["fileName"],
                   ),
                 ]),
                 const SizedBox(height: 20),
-
-                /// SUMMARY
                 _buildSectionTitle("Summary"),
                 _buildTextCard(data["summary"] ?? ""),
                 const SizedBox(height: 20),
-
-                /// WORK DONE
                 _buildSectionTitle("Work Accomplished"),
                 _buildTextCard(data["workDone"] ?? ""),
                 const SizedBox(height: 20),
-
-                /// LEARNING
                 _buildSectionTitle("Learning Outcomes"),
                 _buildTextCard(data["learning"] ?? ""),
                 const SizedBox(height: 20),
-
-                /// CHALLENGES/ISSUES
                 _buildSectionTitle("Challenges & Issues"),
                 _buildTextCard(data["issues"] ?? ""),
                 const SizedBox(height: 20),
-
-                /// NEXT PLAN
                 _buildSectionTitle("Next Week Plan"),
                 _buildTextCard(data["nextPlan"] ?? ""),
                 const SizedBox(height: 20),
-
-                /// STATUS SECTION
-                if (data["status"] != null)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle("Report Status"),
-                      _buildStatusCard(data["status"] ?? "pending"),
-                      const SizedBox(height: 20),
-                    ],
+                _buildSectionTitle("Approval Details"),
+                _buildInfoCard([
+                  _buildInfoRowWithIcon(
+                    Icons.flag_outlined,
+                    "Current Status",
+                    (data["status"] ?? "pending").toString().toUpperCase(),
                   ),
-
-                /// SUBMISSION DATE
-                if (data["createdAt"] != null)
-                  _buildInfoCard([
-                    _buildInfoRowWithIcon(
-                      Icons.schedule,
-                      "Submitted",
-                      _formatDate(data["createdAt"]),
-                    ),
-                  ]),
-
+                  _buildDivider(),
+                  _buildApprovalActorRow(data["approvedBy"]),
+                  _buildDivider(),
+                  _buildInfoRowWithIcon(
+                    Icons.event_available,
+                    "Approval Date",
+                    _formatDate(data["approvalDate"]),
+                  ),
+                  _buildDivider(),
+                  _buildInfoRowWithIcon(
+                    Icons.comment_outlined,
+                    "Rejection Reason",
+                    (data["rejectionReason"] ?? "").toString().trim().isEmpty
+                        ? "Not provided"
+                        : data["rejectionReason"],
+                  ),
+                ]),
                 const SizedBox(height: 20),
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildApprovalActorRow(dynamic approvedBy) {
+    final approverId = (approvedBy ?? "").toString().trim();
+    if (approverId.isEmpty) {
+      return _buildInfoRowWithIcon(
+        Icons.person_outline,
+        "Reviewed By",
+        "Not reviewed yet",
+      );
+    }
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection("user").doc(approverId).get(),
+      builder: (context, snapshot) {
+        String label = approverId;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          label = (userData["fullName"] ?? approverId).toString();
+        }
+
+        return _buildInfoRowWithIcon(
+          Icons.person_outline,
+          "Reviewed By",
+          label,
+        );
+      },
     );
   }
 
@@ -196,26 +201,14 @@ class HodViewReportScreen extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: Colors.grey[500],
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            data["period"] ?? "—",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      data["period"] ?? "-",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -257,39 +250,12 @@ class HodViewReportScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 
   Widget _buildTextCard(String text) {
-    if (text.isEmpty || text == "—") {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Text(
-          "—",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[400],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      );
-    }
-
+    final displayText = text.isEmpty ? "-" : text;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -305,11 +271,12 @@ class HodViewReportScreen extends StatelessWidget {
         ],
       ),
       child: Text(
-        text,
-        style: const TextStyle(
+        displayText,
+        style: TextStyle(
           fontSize: 14,
-          color: Color(0xFF333333),
+          color: displayText == "-" ? Colors.grey[400] : const Color(0xFF333333),
           height: 1.6,
+          fontStyle: displayText == "-" ? FontStyle.italic : FontStyle.normal,
         ),
       ),
     );
@@ -332,7 +299,7 @@ class HodViewReportScreen extends StatelessWidget {
         Expanded(
           flex: 3,
           child: Text(
-            value,
+            value.toString().isEmpty ? "-" : value.toString(),
             style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF1A1A1A),
@@ -364,7 +331,7 @@ class HodViewReportScreen extends StatelessWidget {
         Expanded(
           flex: 3,
           child: Text(
-            value,
+            value.toString().isEmpty ? "-" : value.toString(),
             style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF1A1A1A),
@@ -388,23 +355,19 @@ class HodViewReportScreen extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color bgColor;
     Color textColor;
     IconData icon;
 
     switch (status.toLowerCase()) {
       case "approved":
-        bgColor = Colors.green;
         textColor = Colors.green;
         icon = Icons.check_circle;
         break;
       case "rejected":
-        bgColor = Colors.red;
         textColor = Colors.red;
         icon = Icons.cancel;
         break;
       default:
-        bgColor = Colors.orange;
         textColor = Colors.orange;
         icon = Icons.schedule;
     }
@@ -433,65 +396,14 @@ class HodViewReportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard(String status) {
-    Color bgColor;
-    Color textColor;
-    IconData icon;
-    String displayText;
-
-    switch (status.toLowerCase()) {
-      case "approved":
-        bgColor = Colors.green[50]!;
-        textColor = Colors.green[700]!;
-        icon = Icons.check_circle;
-        displayText = "APPROVED";
-        break;
-      case "rejected":
-        bgColor = Colors.red[50]!;
-        textColor = Colors.red[700]!;
-        icon = Icons.cancel;
-        displayText = "REJECTED";
-        break;
-      default:
-        bgColor = Colors.orange[50]!;
-        textColor = Colors.orange[700]!;
-        icon = Icons.schedule;
-        displayText = "PENDING REVIEW";
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: textColor, size: 20),
-          const SizedBox(width: 12),
-          Text(
-            displayText,
-            style: TextStyle(
-              fontSize: 14,
-              color: textColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return "—";
-    
+    if (timestamp == null) return "Not available";
+
     try {
       final dateTime = (timestamp as Timestamp).toDate();
       return "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}";
     } catch (e) {
-      return "—";
+      return "Not available";
     }
   }
 }
