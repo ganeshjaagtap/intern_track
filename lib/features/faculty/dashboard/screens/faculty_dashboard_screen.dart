@@ -30,6 +30,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
   // --- DYNAMIC DATA VARIABLES ---
   bool isLoading = true;
   String facultyName = "Faculty";
+  String facultyId = "";
   String department = "";
   String college = "";
 
@@ -52,6 +53,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
             setState(() {
               // Safely pull data, use empty strings as fallbacks
               facultyName = data["fullName"] ?? "Faculty";
+              facultyId =
+                  (data["facultyId"] ?? data["uid"] ?? user.uid).toString();
               department = data["dept"] ?? "";
               college = data["college"] ?? "";
               isLoading = false;
@@ -141,21 +144,14 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   /// 🔴 BADGE
                   if (count > 0)
                     Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 12,
+                      top: 12,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        width: 10,
+                        height: 10,
                         decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          count.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                       ),
                     ),
@@ -285,23 +281,34 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AssignTaskScreen(initialGroupId: '',),
-                              ),
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection("faculty_events")
+                              .where("facultyId", isEqualTo: facultyId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            int upcomingCount = 0;
+
+                            if (snapshot.hasData) {
+                              final now = DateTime.now();
+                              upcomingCount = snapshot.data!.docs.where((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final dateValue = data["dateTime"];
+                                if (dateValue is Timestamp) {
+                                  return dateValue.toDate().isAfter(now);
+                                }
+                                return false;
+                              }).length;
+                            }
+
+                            return MiniStatCard(
+                              icon: Icons.event,
+                              value: upcomingCount.toString(),
+                              label: "Events",
+                              bg: const Color(0xFFDFF5EA),
+                              iconColor: Colors.green,
                             );
                           },
-                          child: MiniStatCard(
-                            icon: Icons.pending_actions,
-                            value: "6",
-                            label: "Pending",
-                            bg: const Color(0xFFDFF5EA),
-                            iconColor: Colors.green,
-                          ),
                         ),
                       ),
                     ],

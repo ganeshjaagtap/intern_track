@@ -66,6 +66,11 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
               data['fullName'] ?? data['name'] ?? 'Faculty Member';
           final String email = data['email'] ?? 'No Email';
           final String role = data['role'] ?? 'mentor';
+          final String designation =
+              data['designation'] ?? data['roleTitle'] ?? 'Faculty';
+          final String dept = data['dept'] ?? 'Not Set';
+          final String college = data['college'] ?? 'Not Set';
+          final String phone = data['phoneNumber'] ?? data['phone'] ?? 'Not Set';
 
           // Determine which ID to show
           final String uniqueId = (role == 'faculty')
@@ -90,83 +95,93 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: _pickProfileImage,
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: primaryBlue.withOpacity(0.1),
-                              backgroundImage: profileImage != null
-                                  ? FileImage(profileImage!)
-                                  : null,
-                              child: profileImage == null
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 40,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: _pickProfileImage,
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 44,
+                                  backgroundColor: primaryBlue.withOpacity(0.1),
+                                  backgroundImage: profileImage != null
+                                      ? FileImage(profileImage!)
+                                      : null,
+                                  child: profileImage == null
+                                      ? const Icon(
+                                          Icons.person,
+                                          size: 42,
+                                          color: primaryBlue,
+                                        )
+                                      : null,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: CircleAvatar(
+                                    radius: 13,
+                                    backgroundColor: primaryBlue,
+                                    child: Icon(
+                                      Icons.camera_alt,
+                                      size: 13,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: primaryBlue.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    designation,
+                                    style: const TextStyle(
                                       color: primaryBlue,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: CircleAvatar(
-                                radius: 12,
-                                backgroundColor: primaryBlue,
-                                child: Icon(
-                                  Icons.camera_alt,
-                                  size: 12,
-                                  color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: primaryBlue,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                role.toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const SizedBox(height: 18),
+                      const Divider(height: 1),
+                      const SizedBox(height: 16),
+                      _ProfileInfoRow(label: "Email", value: email),
+                      const SizedBox(height: 12),
+                      _ProfileInfoRow(label: "Phone", value: phone),
+                      const SizedBox(height: 12),
+                      _ProfileInfoRow(label: "Department", value: dept),
+                      const SizedBox(height: 12),
+                      _ProfileInfoRow(label: "College", value: college),
                     ],
                   ),
                 ),
@@ -257,13 +272,6 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
                           ),
                         ),
                       ),
-                      const Divider(indent: 60, height: 1),
-                      SettingsTile(
-                        icon: Icons.security_outlined,
-                        title: "Security & Password",
-                        subtitle: "Manage your account safety",
-                        onTap: () {},
-                      ),
                     ],
                   ),
                 ),
@@ -347,6 +355,51 @@ class SettingsTile extends StatelessWidget {
         Icons.arrow_forward_ios,
         size: 14,
         color: Colors.grey,
+      ),
+    );
+  }
+}
+
+class _ProfileInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value.isEmpty ? 'Not Set' : value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
