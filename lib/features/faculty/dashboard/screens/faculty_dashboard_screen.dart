@@ -289,7 +289,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AssignTaskScreen(),
+                                builder: (context) => const AssignTaskScreen(initialGroupId: '',),
                               ),
                             );
                           },
@@ -336,7 +336,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AssignTaskScreen(),
+                          builder: (context) => const AssignTaskScreen(initialGroupId: '',),
                         ),
                       );
                     },

@@ -129,6 +129,16 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       return;
     }
 
+    final facultyId = (studentData?["facultyId"] ?? "").toString().trim();
+    if (facultyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Assigned faculty not found. Please update your profile first."),
+        ),
+      );
+      return;
+    }
+
     setState(() => isSubmitting = true);
 
     try {
@@ -138,6 +148,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       await FirebaseFirestore.instance.collection("reports").add({
 
         "studentId": uid,
+        "facultyId": facultyId,
         "studentName": studentData?["fullName"] ?? "",
         "enrollmentNo": studentData?["enrollmentNo"] ?? "",
         "department": studentData?["dept"] ?? "",
@@ -163,6 +174,10 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         "fileName": selectedFile?.name ?? "",
 
         "status": "pending",
+        "submittedAt": FieldValue.serverTimestamp(),
+        "approvedBy": null,
+        "approvalDate": null,
+        "rejectionReason": null,
 
         "createdAt": Timestamp.now(),
       });

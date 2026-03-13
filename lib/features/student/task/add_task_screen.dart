@@ -20,7 +20,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   final TextEditingController descriptionController = TextEditingController();
 
   DateTime? selectedDeadline;
-  double progress = 0;
+  double progressValue = 0;
   String? selectedGroupId;
   bool isSubmitting = false;
 
@@ -51,18 +51,18 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         'title': titleController.text.trim(),
         'description': descriptionController.text.trim(),
         'deadline': Timestamp.fromDate(selectedDeadline!),
-        'progress': progress / 100, // Store as 0.0 to 1.0
+        'progress': progressValue / 100, 
         'assignedToGroupId': selectedGroupId,
         'createdBy': facultyUid,
-        'status': 'todo', // Default status
+        'status': 'todo', 
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
-      setState(() => isSubmitting = false);
+      if (mounted) setState(() => isSubmitting = false);
     }
   }
 
@@ -71,67 +71,81 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Assign Group Task"), backgroundColor: coolSky),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text("Assign Group Task"), backgroundColor: coolSky, elevation: 0),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            children: [
-              /// 🔹 GROUP SELECTOR (Only groups created by this mentor)
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('groups')
-                    .where('createdBy', isEqualTo: currentUid)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const CircularProgressIndicator();
-                  var groups = snapshot.data!.docs;
-                  return DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: "Select Project Group",
-                      filled: true,
-                      fillColor: jasmine.withOpacity(0.2),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    value: selectedGroupId,
-                    items: groups.map((g) {
-                      return DropdownMenuItem(value: g.id, child: Text(g['groupName']));
-                    }).toList(),
-                    onChanged: (val) => setState(() => selectedGroupId = val),
-                  );
-                },
+        child: Column(
+          children: [
+            Container(
+              height: 10,
+              decoration: BoxDecoration(
+                color: coolSky,
+                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
               ),
-              const SizedBox(height: 18),
-              _inputField("Task Title", titleController),
-              const SizedBox(height: 18),
-              _inputField("Description", descriptionController, maxLines: 3),
-              const SizedBox(height: 18),
-              _deadlinePicker(),
-              const SizedBox(height: 18),
-              _progressSelector(),
-              const SizedBox(height: 30),
-              isSubmitting 
-                  ? const CircularProgressIndicator() 
-                  : _saveButton(),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                children: [
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('groups')
+                        .where('createdBy', isEqualTo: currentUid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const LinearProgressIndicator();
+                      var groups = snapshot.data!.docs;
+                      if (groups.isEmpty) return const Text("No groups created yet. Create a group first.");
+
+                      return DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: "Select Project Group",
+                          filled: true,
+                          fillColor: jasmine.withOpacity(0.2),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        ),
+                        value: selectedGroupId,
+                        items: groups.map((g) {
+                          return DropdownMenuItem(value: g.id, child: Text(g['groupName'] ?? "Unnamed Group"));
+                        }).toList(),
+                        onChanged: (val) => setState(() => selectedGroupId = val),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _inputField("Task Title", titleController, Icons.title),
+                  const SizedBox(height: 18),
+                  _inputField("Description", descriptionController, Icons.description, maxLines: 3),
+                  const SizedBox(height: 18),
+                  _deadlinePicker(),
+                  const SizedBox(height: 18),
+                  _progressSelector(),
+                  const SizedBox(height: 30),
+                  isSubmitting 
+                      ? const CircularProgressIndicator() 
+                      : _saveButton(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _inputField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _inputField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: coolSky)),
+        Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: coolSky)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           maxLines: maxLines,
           decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: coolSky),
             filled: true,
-            fillColor: jasmine.withOpacity(0.1),
+            fillColor: Colors.grey[100],
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
           ),
         ),
@@ -144,12 +158,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       onTap: pickDeadline,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: tangerine.withOpacity(0.1), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: tangerine.withOpacity(0.1), borderRadius: BorderRadius.circular(14), border: Border.all(color: tangerine.withOpacity(0.3))),
         child: Row(
           children: [
             Icon(Icons.calendar_today, color: tangerine),
             const SizedBox(width: 10),
-            Text(selectedDeadline == null ? "Select Deadline" : DateFormat('dd MMM yyyy').format(selectedDeadline!)),
+            Text(selectedDeadline == null ? "Select Deadline" : DateFormat('dd MMM yyyy').format(selectedDeadline!), 
+              style: TextStyle(color: tangerine, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -158,12 +173,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
   Widget _progressSelector() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Initial Progress: ${progress.toInt()}%", style: TextStyle(color: aquamarine, fontWeight: FontWeight.bold)),
+        Text("Initial Progress: ${progressValue.toInt()}%", style: TextStyle(color: aquamarine, fontWeight: FontWeight.bold)),
         Slider(
-          value: progress,
+          value: progressValue,
           min: 0, max: 100, divisions: 10,
-          onChanged: (v) => setState(() => progress = v),
+          onChanged: (v) => setState(() => progressValue = v),
           activeColor: aquamarine,
         ),
       ],
@@ -174,9 +190,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: coolSky, padding: const EdgeInsets.all(16)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: coolSky, 
+          padding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))
+        ),
         onPressed: saveTaskToFirebase,
-        child: const Text("Assign Task", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        child: const Text("Assign Task to Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
       ),
     );
   }
