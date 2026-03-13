@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // Add intl to pubspec.yaml
 
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 import 'AttendanceDateSelectorScreen.dart';
@@ -9,16 +10,14 @@ class TodayAttendanceScreen extends StatefulWidget {
   const TodayAttendanceScreen({super.key});
 
   @override
-  State<TodayAttendanceScreen> createState() =>
-      _TodayAttendanceScreenState();
+  State<TodayAttendanceScreen> createState() => _TodayAttendanceScreenState();
 }
 
-class _TodayAttendanceScreenState
-    extends State<TodayAttendanceScreen> {
-
+class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
   DateTime selectedDate = DateTime.now();
   List<Map<String, dynamic>> interns = [];
   String mentorId = "";
+  bool isSaving = false;
 
   @override
   void initState() {
@@ -27,16 +26,13 @@ class _TodayAttendanceScreenState
     loadStudents();
   }
 
-  /// GET LOGGED-IN MENTOR
   Future<void> loadMentor() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       mentorId = user.uid;
-      print("Mentor ID: $mentorId");
     }
   }
 
-  /// LOAD STUDENTS FROM FIREBASE
   Future<void> loadStudents() async {
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -51,7 +47,7 @@ class _TodayAttendanceScreenState
         temp.add({
           "name": data["fullName"] ?? "Student",
           "enrollmentNo": data["enrollmentNo"] ?? "",
-          "status": "present",
+          "status": "", // ✅ CHANGED: Set to empty so no tab is selected by default
         });
       }
 
@@ -59,11 +55,10 @@ class _TodayAttendanceScreenState
         interns = temp;
       });
     } catch (e) {
-      print("Error loading students: $e");
+      debugPrint("Error loading students: $e");
     }
   }
 
-  /// CHANGE DATE
   Future<void> changeDate() async {
     final selected = await Navigator.push(
       context,
@@ -79,7 +74,6 @@ class _TodayAttendanceScreenState
     }
   }
 
-  /// UPDATE STATUS
   void updateStatus(int index, String status) {
     setState(() {
       interns[index]["status"] = status;
@@ -90,33 +84,33 @@ class _TodayAttendanceScreenState
   int absentCount() => interns.where((e) => e["status"] == "absent").length;
   int leaveCount() => interns.where((e) => e["status"] == "leave").length;
 
-  /// SAVE ATTENDANCE (UPDATED WITH WRITEBATCH & TOSTRING FIX)
   Future<void> saveAttendance() async {
-    print("Save Attendance Clicked");
+    // Validation: Ensure all interns have a status selected
+    bool allMarked = interns.every((e) => e["status"].isNotEmpty);
+    if (!allMarked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please mark attendance for all interns before saving."), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() => isSaving = true);
 
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
+      String dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
 
       for (var intern in interns) {
-        // FIX: Force conversion to String to prevent TypeError
         String enrollmentNo = intern["enrollmentNo"].toString();
         String status = intern["status"];
 
-        if (enrollmentNo.isEmpty || enrollmentNo == "null") {
-          print("Enrollment number missing for ${intern['name']}");
-          continue;
-        }
-
-        String date =
-            "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-
-        print("Saving $enrollmentNo → $status → $date");
+        if (enrollmentNo.isEmpty || enrollmentNo == "null") continue;
 
         DocumentReference docRef = FirebaseFirestore.instance
             .collection("attendance")
             .doc(enrollmentNo)
             .collection("records")
-            .doc(date);
+            .doc(dateKey);
 
         batch.set(docRef, {
           "status": status,
@@ -126,214 +120,161 @@ class _TodayAttendanceScreenState
       }
 
       await batch.commit();
-      print("Attendance batch saved successfully");
-
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Attendance Saved Successfully!"),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text("Attendance Saved Successfully!"), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
-      print("Error saving attendance: $e");
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error saving attendance: $e"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
         );
       }
+    } finally {
+      setState(() => isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Intern Attendance"),
+        title: const Text("Daily Attendance", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF5F9ED6),
+        elevation: 0,
       ),
       body: interns.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                /// DATE BAR
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: const Color(0xfff5f7fb),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "${selectedDate.day}-${selectedDate.month}-${selectedDate.year}",
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: changeDate,
-                        icon: const Icon(Icons.calendar_month),
-                        label: const Text("Change Date"),
-                      ),
-                    ],
-                  ),
-                ),
-
-                /// SUMMARY
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _summaryCard("Present", presentCount(), Colors.green),
-                      _summaryCard("Absent", absentCount(), Colors.red),
-                      _summaryCard("Leave", leaveCount(), Colors.orange),
-                    ],
-                  ),
-                ),
-
-                const Divider(),
-
-                /// STUDENT LIST
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: interns.length,
-                    itemBuilder: (context, index) {
-                      final intern = interns[index];
-                      String status = intern["status"];
-
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.white,
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 4),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              intern["name"],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                _statusButton(
-                                  index,
-                                  "present",
-                                  "Present",
-                                  Colors.green,
-                                  status == "present",
-                                ),
-                                const SizedBox(width: 8),
-                                _statusButton(
-                                  index,
-                                  "absent",
-                                  "Absent",
-                                  Colors.red,
-                                  status == "absent",
-                                ),
-                                const SizedBox(width: 8),
-                                _statusButton(
-                                  index,
-                                  "leave",
-                                  "Leave",
-                                  Colors.orange,
-                                  status == "leave",
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                /// SAVE BUTTON
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print("SAVE BUTTON CLICKED");
-                        saveAttendance();
-                      },
-                      child: const Text("SAVE ATTENDANCE"),
-                    ),
-                  ),
-                ),
+                _buildDateHeader(),
+                _buildSummaryRow(),
+                const Divider(height: 1),
+                Expanded(child: _buildInternList()),
+                _buildSaveButton(),
               ],
             ),
-        
-
-      bottomNavigationBar:
-          const CompanyMentorBottomBar(currentIndex: 0),
+      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
     );
   }
 
-  Widget _summaryCard(String title, int count, Color color) {
+  Widget _buildDateHeader() {
     return Container(
-      width: 100,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            "$count",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            DateFormat('dd MMMM yyyy').format(selectedDate),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          Text(title),
+          TextButton.icon(
+            onPressed: changeDate,
+            icon: const Icon(Icons.edit_calendar, color: Color(0xFF5F9ED6)),
+            label: const Text("Change Date", style: TextStyle(color: Color(0xFF5F9ED6))),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statusButton(
-    int index,
-    String value,
-    String text,
-    Color color,
-    bool active,
-  ) {
+  Widget _buildSummaryRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _summaryCard("Present", presentCount(), Colors.green),
+          _summaryCard("Absent", absentCount(), Colors.red),
+          _summaryCard("Leave", leaveCount(), Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInternList() {
+    return ListView.builder(
+      itemCount: interns.length,
+      padding: const EdgeInsets.only(bottom: 20),
+      itemBuilder: (context, index) {
+        final intern = interns[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(intern["name"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _statusButton(index, "present", "Present", Colors.green, intern["status"] == "present"),
+                  const SizedBox(width: 8),
+                  _statusButton(index, "absent", "Absent", Colors.red, intern["status"] == "absent"),
+                  const SizedBox(width: 8),
+                  _statusButton(index, "leave", "Leave", Colors.orange, intern["status"] == "leave"),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Color(0xFFEEEEEE)))),
+      child: SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF5F9ED6),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: isSaving ? null : saveAttendance,
+          child: isSaving 
+              ? const CircularProgressIndicator(color: Colors.white) 
+              : const Text("SAVE ATTENDANCE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryCard(String title, int count, Color color) {
+    return Column(
+      children: [
+        Text("$count", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+        Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _statusButton(int index, String value, String text, Color color, bool active) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          updateStatus(index, value);
-        },
+        onTap: () => updateStatus(index, value),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: active ? color : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(8),
+            color: active ? color : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Center(
             child: Text(
               text,
-              style: TextStyle(color: active ? Colors.white : Colors.black),
+              style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: active ? FontWeight.bold : FontWeight.normal),
             ),
           ),
         ),
