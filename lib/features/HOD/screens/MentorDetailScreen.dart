@@ -28,10 +28,21 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
 
     final facultyId = widget.mentorData['id'] ?? "";
 
+    if (facultyId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        totalStudents = 0;
+      });
+      return;
+    }
+
     final snapshot = await FirebaseFirestore.instance
-        .collection('student')
+        .collection('user')
+        .where('role', isEqualTo: 'student')
         .where('facultyId', isEqualTo: facultyId)
         .get();
+
+    if (!mounted) return;
 
     setState(() {
       totalStudents = snapshot.docs.length;

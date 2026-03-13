@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'MentorDetailScreen.dart';
 
 class MentorScreen extends StatefulWidget {
@@ -84,78 +85,95 @@ class _MentorScreenState extends State<MentorScreen> {
 
           /// FACULTY LIST
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-
-              stream: FirebaseFirestore.instance
-                  .collection('user')
-                  .where('role', isEqualTo: 'faculty')
-                  .snapshots(),
-
-              builder: (context, snapshot) {
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            child: FutureBuilder<DocumentSnapshot>(
+              future: FirebaseAuth.instance.currentUser == null
+                  ? null
+                  : FirebaseFirestore.instance
+                      .collection('user')
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .get(),
+              builder: (context, hodSnapshot) {
+                if (hodSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                final hodData = hodSnapshot.data?.data() as Map<String, dynamic>?;
+                final hodDept =
+                    (hodData?['dept'] ?? "").toString().trim().toLowerCase();
+
+                if (hodDept.isEmpty) {
                   return const Center(child: Text("No mentors found"));
                 }
 
-                final mentors = snapshot.data!.docs;
+                return StreamBuilder<QuerySnapshot>(
 
-                /// FILTER DEPARTMENT
-                final filteredMentors = mentors.where((doc) {
+                  stream: FirebaseFirestore.instance
+                      .collection('user')
+                      .where('role', isEqualTo: 'faculty')
+                      .snapshots(),
 
-                  final data = doc.data() as Map<String, dynamic>;
+                  builder: (context, snapshot) {
 
-                  final name =
-                      (data['fullName'] ?? "").toString().toLowerCase();
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                  final dept =
-                      (data['dept'] ?? "").toString().toLowerCase();
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text("No mentors found"));
+                    }
 
-                  bool isITDept =
-                      dept.contains("it") ||
-                      dept.contains("information technology");
+                    final mentors = snapshot.data!.docs;
 
-                  return isITDept && name.contains(searchQuery);
+                    final filteredMentors = mentors.where((doc) {
 
-                }).toList();
+                      final data = doc.data() as Map<String, dynamic>;
 
-                if (filteredMentors.isEmpty) {
-                  return const Center(
-                    child: Text("No IT mentors found"),
-                  );
-                }
+                      final name =
+                          (data['fullName'] ?? "").toString().toLowerCase();
 
-                return ListView.builder(
+                      final dept =
+                          (data['dept'] ?? "").toString().trim().toLowerCase();
 
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 15),
+                      return dept == hodDept && name.contains(searchQuery);
 
-                  itemCount: filteredMentors.length,
+                    }).toList();
 
-                  itemBuilder: (context, index) {
+                    if (filteredMentors.isEmpty) {
+                      return const Center(
+                        child: Text("No mentors found"),
+                      );
+                    }
 
-                    final data =
-                        filteredMentors[index].data() as Map<String, dynamic>;
+                    return ListView.builder(
 
-                    Map<String, String> mentor = {
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 15),
 
-                      "name": data['fullName']?.toString() ?? "",
-                      "id": data['facultyId']?.toString() ?? "",
-                      "dept": data['dept']?.toString() ?? "",
-                      "designation": data['designation']?.toString() ?? "",
-                      "email": data['email']?.toString() ?? "",
-                      "phone": data['phoneNumber']?.toString() ?? "",
-                      "totalStudents": "",
-                      "companies": "",
-                      "img": "",
+                      itemCount: filteredMentors.length,
 
-                    };
+                      itemBuilder: (context, index) {
 
-                    return _buildMentorCard(mentor, primaryBlue);
+                        final data =
+                            filteredMentors[index].data() as Map<String, dynamic>;
+
+                        Map<String, String> mentor = {
+
+                          "name": data['fullName']?.toString() ?? "",
+                          "id": data['facultyId']?.toString() ?? "",
+                          "dept": data['dept']?.toString() ?? "",
+                          "designation": data['designation']?.toString() ?? "",
+                          "email": data['email']?.toString() ?? "",
+                          "phone": data['phoneNumber']?.toString() ?? "",
+                          "totalStudents": "",
+                          "companies": "",
+                          "img": "",
+
+                        };
+
+                        return _buildMentorCard(mentor, primaryBlue);
+                      },
+                    );
                   },
                 );
               },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:flutter_application_2/features/HOD/report/hod_student_list_screen.dart';
 import 'package:flutter_application_2/features/HOD/screens/report/hod_student_list_screen.dart';
 import 'student_list_screen.dart';
@@ -56,86 +57,129 @@ class _StatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
           .collection('user')
-          .where('role', isEqualTo: 'student')
-          .where('dept', isEqualTo: 'IT')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+          .doc(currentUser.uid)
+          .get(),
+      builder: (context, userSnapshot) {
+        if (!userSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final students = snapshot.data!.docs;
-        int total = students.length;
+        final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final department = (userData['dept'] ?? '').toString();
 
-        // ✅ Updated with safe check
-        int active = students.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return _isUserApproved(data['isApproved']);
-        }).length;
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('user')
+              .where('role', isEqualTo: 'student')
+              .where('dept', isEqualTo: department)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        // ✅ Updated with safe check
-        int pending = students.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return !_isUserApproved(data['isApproved']);
-        }).length;
+            final students = snapshot.data!.docs;
+            int total = students.length;
 
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    title: "Total Students",
-                    value: total.toString(),
-                    icon: Icons.groups,
-                    color: Colors.blue,
-                    screen: const StudentListScreen(department: "IT"),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    title: "Active Now",
-                    value: active.toString(),
-                    icon: Icons.bolt,
-                    color: Colors.orange,
-                    screen: const ActiveInternshipsScreen(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    title: "Completed",
-                    value: "0",
-                    icon: Icons.check_circle_outline,
-                    color: Colors.green,
-                    screen: const CompletedInternshipsScreen(),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    title: "Pending",
-                    value: pending.toString(),
-                    icon: Icons.hourglass_empty,
-                    color: Colors.deepOrange,
-                    screen: const ReviewApprovalsScreen(),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            // ✅ Updated with safe check
+            int pending = students.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return !_isUserApproved(data['isApproved']);
+            }).length;
+
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user')
+                  .where('internshipStatus', isEqualTo: 'Ongoing')
+                  .snapshots(),
+              builder: (context, activeSnapshot) {
+                if (!activeSnapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final active = activeSnapshot.data!.docs.length;
+
+                return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user')
+                  .where('internshipStatus', isEqualTo: 'Completed')
+                  .snapshots(),
+              builder: (context, completedSnapshot) {
+                if (!completedSnapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final completed = completedSnapshot.data!.docs.length;
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            title: "Total Students",
+                            value: total.toString(),
+                            icon: Icons.groups,
+                            color: Colors.blue,
+                            screen: const StudentListScreen(department: "IT"),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            title: "Active Now",
+                            value: active.toString(),
+                            icon: Icons.bolt,
+                            color: Colors.orange,
+                            screen: const ActiveInternshipsScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            title: "Completed",
+                            value: completed.toString(),
+                            icon: Icons.check_circle_outline,
+                            color: Colors.green,
+                            screen: const CompletedInternshipsScreen(),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            title: "Pending",
+                            value: pending.toString(),
+                            icon: Icons.hourglass_empty,
+                            color: Colors.deepOrange,
+                            screen: const ReviewApprovalsScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            );
+              },
+            );
+          },
         );
       },
     );

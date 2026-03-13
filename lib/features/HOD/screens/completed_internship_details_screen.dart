@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_2/features/HOD/screens/report/hod_student_reports_screen.dart';
 
 class CompletedInternshipDetailsScreen extends StatelessWidget {
 
@@ -13,6 +14,7 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final name = student["fullName"] ?? "Student";
+    final studentId = (student["uid"] ?? "").toString();
 
     return Scaffold(
 
@@ -77,21 +79,6 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            /// PERFORMANCE DETAILS
-            const Text(
-              "Performance Details",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const Divider(),
-
-            _infoTile("Attendance", student["attendance"]),
-            _infoTile("Tasks Completed", student["tasks"]),
-            _infoTile("Mentor Feedback", student["feedback"]),
-            _infoTile("Final Grade", student["grade"]),
-
-            const SizedBox(height: 20),
-
             /// STATUS
             const Text(
               "Internship Status",
@@ -118,34 +105,63 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade100),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          "Internship Completed",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "All assigned internship milestones are marked complete",
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             /// ACTION BUTTONS
             Row(
               children: [
-
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      if (studentId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Student report not available"),
+                          ),
+                        );
+                        return;
+                      }
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Certificate download coming soon"),
-                        ),
-                      );
-
-                    },
-                    child: const Text("Download Certificate"),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("View report feature coming soon"),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HodStudentReportsScreen(
+                            studentId: studentId,
+                            studentName: name.toString(),
+                          ),
                         ),
                       );
 

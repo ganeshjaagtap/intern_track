@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-// 1. ✅ IMPORT YOUR LOGIN SCREEN (Adjust path if needed)
+import 'package:flutter_application_2/features/HOD/screens/edit_mentor_profile_screen.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 
 class MentorProfileScreen extends StatefulWidget {
@@ -10,11 +12,7 @@ class MentorProfileScreen extends StatefulWidget {
 }
 
 class _MentorProfileScreenState extends State<MentorProfileScreen> {
-  bool _isDarkMode = false; 
-
-  // ✅ LOGOUT FUNCTION
   void _handleLogout() {
-    // Show feedback
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Logged out successfully"),
@@ -23,90 +21,224 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
       ),
     );
 
-    // ✅ NAVIGATE AND CLEAR STACK
-    // This removes the Layout and Profile screens from memory
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()), 
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
       (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF64A9F6);
-    const bgLight = Color(0xFFF5F7F9);
+    const Color primaryBlue = Color(0xFF6BB6FF);
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-    return Container(
-      color: bgLight,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      body: currentUid.isEmpty
+          ? _buildProfileContent(
+              context,
+              primaryBlue: primaryBlue,
+              name: "Mentor",
+              email: FirebaseAuth.instance.currentUser?.email ?? "No Email",
+              role: "Mentor",
+              dept: "Not Set",
+              college: "Not Set",
+            )
+          : StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user')
+                  .doc(currentUid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return _buildProfileContent(
+                    context,
+                    primaryBlue: primaryBlue,
+                    name: "Mentor",
+                    email:
+                        FirebaseAuth.instance.currentUser?.email ?? "No Email",
+                    role: "Mentor",
+                    dept: "Not Set",
+                    college: "Not Set",
+                  );
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final String name =
+                    (data['fullName'] ?? data['name'] ?? 'Mentor').toString();
+                final String email = (data['email'] ??
+                        FirebaseAuth.instance.currentUser?.email ??
+                        'No Email')
+                    .toString();
+                final String role =
+                    (data['designation'] ?? data['role'] ?? 'Mentor')
+                        .toString();
+                final String dept =
+                    (data['dept'] ?? data['department'] ?? 'Not Set')
+                        .toString();
+                final String college =
+                    (data['college'] ?? data['collegeName'] ?? 'Not Set')
+                        .toString();
+
+                return _buildProfileContent(
+                  context,
+                  primaryBlue: primaryBlue,
+                  name: name,
+                  email: email,
+                  role: role,
+                  dept: dept,
+                  college: college,
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _buildProfileContent(
+    BuildContext context, {
+    required Color primaryBlue,
+    required String name,
+    required String email,
+    required String role,
+    required String dept,
+    required String college,
+  }) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// 📘 HEADER TITLE BAR
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: const BoxDecoration(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))]
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                ),
+              ],
             ),
-            child: const Text(
-              "Account Settings",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProfileCard(primaryBlue),
-                  const SizedBox(height: 24),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8.0),
-                    child: Text("Preferences", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 12),
-
-                  _buildSettingsGroup([
-                    _settingsTile(Icons.person_outline, "Edit Profile", "Update personal info"),
-                    _settingsTile(Icons.notifications_none, "Notifications", "Manage alerts"),
-                    _settingsTile(Icons.lock_outline, "Security", "Password & Privacy"),
-                    _settingsTile(
-                      Icons.dark_mode_outlined, 
-                      "Dark Mode", 
-                      "Toggle theme",
-                      trailing: Switch(
-                        value: _isDarkMode,
-                        activeColor: primaryBlue,
-                        onChanged: (val) => setState(() => _isDarkMode = val),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 44,
+                      backgroundColor: primaryBlue.withOpacity(0.1),
+                      child:  Icon(
+                        Icons.person,
+                        size: 42,
+                        color: primaryBlue,
                       ),
                     ),
-                  ]),
-
-                  const SizedBox(height: 32),
-
-                  /// 🚪 LOG OUT BUTTON (Updated)
-                  ElevatedButton.icon(
-                    onPressed: _handleLogout, // ✅ Calls the logout function
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                    label: const Text("LOG OUT", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 55),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      elevation: 0,
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            name.isEmpty ? 'Mentor' : name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primaryBlue.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              role.isEmpty ? 'Mentor' : role,
+                              style:  TextStyle(
+                                color: primaryBlue,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 40), 
-                ],
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                _ProfileInfoRow(label: "Email", value: email),
+                const SizedBox(height: 12),
+                _ProfileInfoRow(label: "Role", value: role),
+                const SizedBox(height: 12),
+                _ProfileInfoRow(label: "Department", value: dept),
+                const SizedBox(height: 12),
+                _ProfileInfoRow(label: "College", value: college),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          const Text(
+            "Settings",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.blueGrey,
+            ),
+          ),
+          const SizedBox(height: 15),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                _InfoTile(
+                  icon: Icons.person_outline,
+                  title: "Edit Profile",
+                  subtitle: "Update your personal information",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EditMentorProfileScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _handleLogout,
+              icon: const Icon(Icons.logout),
+              label: const Text("LOG OUT"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red,
+                elevation: 0,
+                side: const BorderSide(color: Colors.red, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
             ),
           ),
@@ -114,54 +246,91 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
       ),
     );
   }
+}
 
-  // --- Helper Widgets ---
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
 
-  Widget _buildProfileCard(Color themeColor) {
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF6BB6FF).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: const Color(0xFF6BB6FF)),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 14,
+        color: Colors.grey,
+      ),
+    );
+  }
+}
+
+class _ProfileInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 35,
-            backgroundColor: themeColor.withOpacity(0.1),
-            child: Icon(Icons.person, size: 40, color: themeColor),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(width: 20),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("User Name", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              Text("user@email.com", style: TextStyle(color: Colors.grey)),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            value.isEmpty ? 'Not Set' : value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSettingsGroup(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _settingsTile(IconData icon, String title, String subtitle, {Widget? trailing}) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFF64A9F6)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
     );
   }
 }
