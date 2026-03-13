@@ -10,7 +10,6 @@ class CompaniesScreen extends StatefulWidget {
 }
 
 class _CompaniesScreenState extends State<CompaniesScreen> {
-
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = "";
 
@@ -22,7 +21,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     const primaryBlue = Color(0xFF64A9F6);
     const bgLight = Color(0xFFF5F7F9);
 
@@ -30,24 +28,21 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
       backgroundColor: bgLight,
       body: Column(
         children: [
-
           /// SEARCH HEADER
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
             decoration: const BoxDecoration(
               color: primaryBlue,
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
+                bottomLeft: Radius.circular(25),
+                bottomRight: Radius.circular(25),
               ),
             ),
-
             child: SafeArea(
               bottom: false,
               child: Container(
                 height: 50,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-
                 decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(25),
@@ -55,9 +50,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                       BoxShadow(
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 10)
-                    ]
-                ),
-
+                    ]),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (value) {
@@ -65,7 +58,6 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                       searchQuery = value.toLowerCase();
                     });
                   },
-
                   decoration: const InputDecoration(
                     icon: Icon(Icons.search, color: primaryBlue),
                     hintText: "Search company...",
@@ -82,36 +74,21 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
               stream: FirebaseFirestore.instance
                   .collection("company")
                   .snapshots(),
-
               builder: (context, snapshot) {
-
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!snapshot.hasData ||
-                    snapshot.data!.docs.isEmpty) {
-
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return _buildEmptyState();
                 }
 
                 final companies = snapshot.data!.docs;
 
-                /// SEARCH FILTER
                 final filteredCompanies = companies.where((doc) {
-
-                  final data =
-                  doc.data() as Map<String, dynamic>;
-
-                  final name =
-                  (data["name"] ?? "").toString().toLowerCase();
-
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data["name"] ?? "").toString().toLowerCase();
                   return name.contains(searchQuery);
-
                 }).toList();
 
                 if (filteredCompanies.isEmpty) {
@@ -119,17 +96,10 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 15),
-
+                  padding: const EdgeInsets.all(16),
                   itemCount: filteredCompanies.length,
-
                   itemBuilder: (context, index) {
-
-                    final data = filteredCompanies[index]
-                        .data() as Map<String, dynamic>;
-
+                    final data = filteredCompanies[index].data() as Map<String, dynamic>;
                     return _buildCompanyCard(data, primaryBlue);
                   },
                 );
@@ -141,41 +111,31 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     );
   }
 
-  /// EMPTY STATE
   Widget _buildEmptyState() {
-
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-
-          Icon(Icons.search_off,
-              size: 80,
-              color: Colors.grey[300]),
-
+          Icon(Icons.search_off, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 10),
-
-          Text(
-            "No companies found",
-            style: TextStyle(color: Colors.grey[600]),
-          ),
+          Text("No companies found", style: TextStyle(color: Colors.grey[600])),
         ],
       ),
     );
   }
 
-  /// COMPANY CARD
-  Widget _buildCompanyCard(
-      Map<String, dynamic> company,
-      Color themeColor) {
+  /// ✅ UPDATED COMPANY CARD WITH NEW FIELDS
+  Widget _buildCompanyCard(Map<String, dynamic> company, Color themeColor) {
+    // New Fields
+    final String experience = company['experience'] ?? "N/A";
+    final dynamic internCount = company['internCount'] ?? 0;
+    final List courses = company['courses'] ?? [];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -183,91 +143,95 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
               offset: const Offset(0, 4)),
         ],
       ),
-
-      child: ListTile(
-
-        onTap: () {
-
-          Navigator.push(
-            context,
-
-            MaterialPageRoute(
-              builder: (context) =>
-                  CompanyDetailScreen(
-                      companyData: company),
-            ),
-          );
-        },
-
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 10),
-
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: themeColor.withOpacity(0.1),
-
-          child: Icon(
-            Icons.business_rounded,
-            color: themeColor,
-            size: 30,
-          ),
-        ),
-
-        /// COMPANY NAME
-        title: Text(
-          company["name"] ?? "",
-          style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold),
-        ),
-
-        /// INDUSTRY + ADDRESS
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            const SizedBox(height: 3),
-
-            Text(
-              company["industry"] ?? "",
-              style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 13),
-            ),
-
-            const SizedBox(height: 3),
-
-            Row(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CompanyDetailScreen(companyData: company),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                Icon(
-                  Icons.location_on,
-                  size: 14,
-                  color: Colors.grey.shade500,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: themeColor.withOpacity(0.1),
+                      child: Icon(Icons.business_rounded, color: themeColor, size: 30),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            company["name"] ?? "Unknown Company",
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            company["industry"] ?? "Technology",
+                            style: TextStyle(color: themeColor, fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                  ],
                 ),
-
-                const SizedBox(width: 4),
-
-                Expanded(
-                  child: Text(
-                    company["address"] ?? "",
-                    style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 12),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1),
+                ),
+                
+                /// ✅ NEW ROW: EXPERIENCE & INTERN COUNT
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSmallStat(Icons.history, "$experience Exp"),
+                    _buildSmallStat(Icons.people_outline, "$internCount Interns"),
+                    
+                    /// ✅ COURSE COUNT BADGE
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "${courses.length} Courses",
+                        style: TextStyle(color: Colors.green.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-
-        trailing: const Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 18,
-          color: Colors.grey,
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSmallStat(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade500),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 }

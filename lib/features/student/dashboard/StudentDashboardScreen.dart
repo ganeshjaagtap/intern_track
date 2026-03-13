@@ -768,29 +768,121 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
 
-  /// Companies Tab
+  /// Updated Companies Tab with Experience, Intern Count, and Tracks
   Widget _buildCompaniesTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('company').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("No companies available."));
+        }
+
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Center(child: Text("No companies available."));
+
         return ListView.builder(
           itemCount: docs.length,
+          padding: const EdgeInsets.only(top: 8),
           itemBuilder: (context, index) {
             final data = docs[index].data() as Map<String, dynamic>;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              child: ListTile(
-                leading: Icon(Icons.business, color: Colors.blue.shade300),
-                title: Text(data['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(data['industry'] ?? 'Industry', style: const TextStyle(fontSize: 12)),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => CompanyDetailScreen(companyData: {...data, 'id': docs[index].id})),
+            final String experience = data['experience'] ?? "N/A";
+            final dynamic internCount = data['internCount'] ?? 0;
+            final List courses = data['courses'] ?? [];
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(15),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CompanyDetailScreen(
+                        companyData: {...data, 'id': docs[index].id},
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.blue.withOpacity(0.1),
+                              child: const Icon(Icons.business_rounded, color: Colors.blue, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    data['name'] ?? 'Unknown',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    data['industry'] ?? 'Technology',
+                                    style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                          ],
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(height: 1),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.history, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text("$experience Exp", style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                                const SizedBox(width: 12),
+                                const Icon(Icons.people_outline, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text("$internCount Interns", style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                "${courses.length} Tracks",
+                                style: TextStyle(color: Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             );
