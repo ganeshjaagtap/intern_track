@@ -43,8 +43,18 @@ class StudentDashboardScreen extends StatelessWidget {
     return "Intern";
   }
 
-  void _showMentorDetailsModal(BuildContext context, String? facultyId) {
-    if (facultyId == null || facultyId.isEmpty) {
+  void _showMentorDetailsModal(
+    BuildContext context, {
+    required String? facultyId,
+    required String? companyMentorId,
+    String? companyMentorName,
+    String? companyName,
+  }) {
+    final hasFacultyMentor = facultyId != null && facultyId.isNotEmpty;
+    final hasCompanyMentor =
+        companyMentorId != null && companyMentorId.isNotEmpty;
+
+    if (!hasFacultyMentor && !hasCompanyMentor) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No mentor assigned.")));
       return;
     }
@@ -55,12 +65,98 @@ class StudentDashboardScreen extends StatelessWidget {
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
         expand: false,
-        builder: (context, scrollController) => _buildMentorDetailsSheet(scrollController, facultyId),
+        builder: (context, scrollController) => _buildMentorDetailsSheet(
+          context,
+          scrollController,
+          facultyId: facultyId,
+          companyMentorId: companyMentorId,
+          companyMentorName: companyMentorName,
+          companyName: companyName,
+        ),
       ),
     );
   }
 
-  Widget _buildMentorDetailsSheet(ScrollController scrollController, String facultyId) {
+  Widget _buildMentorDetailsSheet(
+    BuildContext context,
+    ScrollController scrollController, {
+    required String? facultyId,
+    required String? companyMentorId,
+    String? companyMentorName,
+    String? companyName,
+  }) {
+    int selectedTab = 0;
+    return StatefulBuilder(
+      builder: (context, setModalState) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _mentorTabButton(
+                          label: "Faculty mentor",
+                          isSelected: selectedTab == 0,
+                          onTap: () => setModalState(() => selectedTab = 0),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _mentorTabButton(
+                          label: "Company mentor",
+                          isSelected: selectedTab == 1,
+                          onTap: () => setModalState(() => selectedTab = 1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (selectedTab == 0)
+                  _buildFacultyMentorTab(facultyId)
+                else
+                  _buildCompanyMentorTab(
+                    companyMentorId,
+                    fallbackMentorName: companyMentorName,
+                    fallbackCompanyName: companyName,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFacultyMentorTab(String? facultyId) {
+    if (facultyId == null || facultyId.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: Text("Faculty mentor not assigned.")),
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('user')
@@ -82,110 +178,245 @@ class StudentDashboardScreen extends StatelessWidget {
         final String mEmail = mentorData['email'] ?? "N/A";
         final String mDept = mentorData['dept'] ?? mentorData['company_name'] ?? "IT Department";
 
-        return SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: Colors.blue.withOpacity(0.1),
-                      child: Text(_initials(mName), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(mName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text(mDept, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Call Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      if (mPhone != "N/A") {
-                        final Uri launchUri = Uri(scheme: 'tel', path: mPhone);
-                        if (await canLaunchUrl(launchUri)) {
-                          await launchUrl(launchUri);
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.call, size: 18),
-                    label: const Text("CALL MENTOR", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Details Section
-                const Text("Details", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: 12),
-                _mentorDetailRow(Icons.email, "Email", mEmail),
-                const SizedBox(height: 16),
-                _mentorDetailRow(Icons.phone, "Phone", mPhone),
-                const SizedBox(height: 16),
-                _mentorDetailRow(Icons.badge, "Mentor ID", facultyId),
-                const SizedBox(height: 16),
-                _mentorDetailRow(Icons.business, "Department", mDept),
-                const SizedBox(height: 20),
-
-                // Interns Count
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('user')
-                      .where('role', isEqualTo: 'student')
-                      .where('facultyId', isEqualTo: facultyId)
-                      .snapshots(),
-                  builder: (context, internSnap) {
-                    int count = internSnap.hasData ? internSnap.data!.docs.length : 0;
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: Colors.blue.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
-                      child: Row(
-                        children: [
-                          Icon(Icons.groups, size: 24, color: Colors.blue),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Total Interns Under Mentor", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text("$count Students", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMentorHeader(
+              name: mName,
+              subtitle: mDept,
             ),
-          ),
+            const SizedBox(height: 24),
+            _buildCallButton(
+              context,
+              mPhone,
+              label: "CALL MENTOR",
+            ),
+            const SizedBox(height: 24),
+            const Text("Details", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 12),
+            _mentorDetailRow(Icons.email, "Email", mEmail),
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.phone, "Phone", mPhone),
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.badge, "Mentor ID", facultyId),
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.business, "Department", mDept),
+            const SizedBox(height: 20),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user')
+                  .where('role', isEqualTo: 'student')
+                  .where('facultyId', isEqualTo: facultyId)
+                  .snapshots(),
+              builder: (context, internSnap) {
+                final count = internSnap.hasData ? internSnap.data!.docs.length : 0;
+                return _mentorCountCard(
+                  title: "Total Interns Under Mentor",
+                  count: count,
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildCompanyMentorTab(
+    String? companyMentorId, {
+    String? fallbackMentorName,
+    String? fallbackCompanyName,
+  }) {
+    if (companyMentorId == null || companyMentorId.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: Text("Company mentor not assigned.")),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .where('role', isEqualTo: 'mentor')
+          .where('mentorId', isEqualTo: companyMentorId)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final mentorData = snapshot.hasData && snapshot.data!.docs.isNotEmpty
+            ? snapshot.data!.docs.first.data() as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final String mName = (mentorData['fullName'] ?? fallbackMentorName ?? "Company Mentor").toString();
+        final String mPhone = (mentorData['phoneNumber'] ?? mentorData['phone'] ?? "N/A").toString();
+        final String mEmail = (mentorData['email'] ?? "N/A").toString();
+        final String mCompany = (mentorData['company_name'] ?? fallbackCompanyName ?? "N/A").toString();
+        final String mDesignation = (mentorData['designation'] ?? mentorData['dept'] ?? "").toString();
+        final String mDepartment = (mentorData['dept'] ?? "").toString();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildMentorHeader(
+              name: mName,
+              subtitle: mDesignation.isNotEmpty ? mDesignation : mCompany,
+            ),
+            const SizedBox(height: 24),
+            _buildCallButton(
+              context,
+              mPhone,
+              label: "CALL MENTOR",
+            ),
+            const SizedBox(height: 24),
+            const Text("Details", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 12),
+            _mentorDetailRow(Icons.business, "Company", mCompany),
+            if (mDesignation.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _mentorDetailRow(Icons.work_outline, "Designation", mDesignation),
+            ],
+            if (mDepartment.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _mentorDetailRow(Icons.apartment, "Department", mDepartment),
+            ],
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.email, "Email", mEmail),
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.phone, "Phone", mPhone),
+            const SizedBox(height: 16),
+            _mentorDetailRow(Icons.badge, "Mentor ID", companyMentorId),
+            const SizedBox(height: 20),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('user')
+                  .where('role', isEqualTo: 'student')
+                  .where('companyMentorId', isEqualTo: companyMentorId)
+                  .snapshots(),
+              builder: (context, internSnap) {
+                final count = internSnap.hasData ? internSnap.data!.docs.length : 0;
+                return _mentorCountCard(
+                  title: "Total Interns Under Mentor",
+                  count: count,
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _mentorTabButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6BB6FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMentorHeader({
+    required String name,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 32,
+          backgroundColor: Colors.blue.withOpacity(0.1),
+          child: Text(_initials(name), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCallButton(
+    BuildContext context,
+    String phoneNumber, {
+    required String label,
+  }) {
+    final normalizedPhone = phoneNumber.trim();
+    final canCall = normalizedPhone.isNotEmpty && normalizedPhone != "N/A";
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          disabledBackgroundColor: Colors.grey.shade300,
+          disabledForegroundColor: Colors.grey.shade600,
+        ),
+        onPressed: canCall ? () => _launchMentorCall(context, normalizedPhone) : null,
+        icon: const Icon(Icons.call, size: 18),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Future<void> _launchMentorCall(BuildContext context, String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Could not launch phone dialer.")),
+    );
+  }
+
+  Widget _mentorCountCard({
+    required String title,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.blue.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
+      child: Row(
+        children: [
+          Icon(Icons.groups, size: 24, color: Colors.blue),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text("$count Students", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -434,7 +665,15 @@ class StudentDashboardScreen extends StatelessWidget {
 
                     // Mentor Card
                     GestureDetector(
-                      onTap: () => _showMentorDetailsModal(context, facultyId),
+                      onTap: () => _showMentorDetailsModal(
+                        context,
+                        facultyId: facultyId,
+                        companyMentorId:
+                            (userData["companyMentorId"] ?? "").toString(),
+                        companyMentorName:
+                            (userData["companyMentor"] ?? "").toString(),
+                        companyName: (userData["company"] ?? "").toString(),
+                      ),
                       child: _buildStatCard(
                         icon: Icons.person_outline,
                         value: "1",
