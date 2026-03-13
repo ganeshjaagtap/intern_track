@@ -7,11 +7,48 @@ import 'package:flutter_application_2/features/interns/screens/InternshipbriefDe
 import 'package:flutter_application_2/features/student/models/company_details_screen.dart';
 import 'package:flutter_application_2/features/student/notifications/student_event_notifications_screen.dart';
 import 'package:flutter_application_2/features/student/profile/NotificationScreen.dart';
-import 'package:flutter_application_2/features/student/reports/SubmitReportScreen.dart';
+import 'package:flutter_application_2/features/student/task/company_task_screen.dart';
 import 'package:flutter_application_2/features/student/task/student_task_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
+
+  DateTime? _parseInternshipDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value.trim());
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _buildProgressData(Map<String, dynamic> userData) {
+    final startDate = _parseInternshipDate(userData["startDate"]);
+    final endDate = _parseInternshipDate(userData["endDate"]);
+
+    if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
+      return {
+        "label": "Dates not available",
+        "progress": 0.0,
+      };
+    }
+
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final normalizedEnd = DateTime(endDate.year, endDate.month, endDate.day);
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+
+    final totalDays = normalizedEnd.difference(normalizedStart).inDays + 1;
+    final rawCompletedDays = normalizedToday.difference(normalizedStart).inDays + 1;
+    final completedDays = rawCompletedDays.clamp(0, totalDays);
+    final progress = totalDays > 0 ? completedDays / totalDays : 0.0;
+
+    return {
+      "label": "$completedDays/$totalDays days completed",
+      "progress": progress.toDouble(),
+    };
+  }
 
   String _formatEventDate(dynamic value) {
     if (value is Timestamp) {
@@ -474,39 +511,6 @@ class StudentDashboardScreen extends StatelessWidget {
                 Text(internshipRole, style: const TextStyle(fontSize: 14, color: Colors.grey)),
                 const SizedBox(height: 20),
 
-                // Alert Card
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD6D6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber, color: Colors.red, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          "Week report submission pending",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubmitReportScreen())),
-                        child: const Text("Submit", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection("notifications")
@@ -635,7 +639,6 @@ class StudentDashboardScreen extends StatelessWidget {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InternshipBriefDetailsScreen())),
                       child: _buildStatCard(
                         icon: Icons.bar_chart,
-                        value: "1",
                         label: "Active",
                         bg: const Color(0xFFD9ECFF),
                         iconColor: Colors.blue,
@@ -647,20 +650,21 @@ class StudentDashboardScreen extends StatelessWidget {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudentTaskScreen())),
                       child: _buildStatCard(
                         icon: Icons.task_alt,
-                        value: "7",
                         label: "Tasks",
                         bg: const Color(0xFFE8E4FF),
                         iconColor: Colors.deepPurple,
                       ),
                     ),
 
-                    // Days Completed Card
-                    _buildStatCard(
-                      icon: Icons.schedule,
-                      value: "45/120",
-                      label: "Days Completed",
-                      bg: const Color(0xFFFFE8CC),
-                      iconColor: Colors.orange,
+                    // Company Task Card
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompanyTaskScreen())),
+                      child: _buildStatCard(
+                        icon: Icons.assignment_outlined,
+                        label: "Company Task",
+                        bg: const Color(0xFFFFE8CC),
+                        iconColor: Colors.orange,
+                      ),
                     ),
 
                     // Mentor Card
@@ -676,7 +680,6 @@ class StudentDashboardScreen extends StatelessWidget {
                       ),
                       child: _buildStatCard(
                         icon: Icons.person_outline,
-                        value: "1",
                         label: "My Mentor",
                         bg: const Color(0xFFD9F0E8),
                         iconColor: Colors.teal,
@@ -727,7 +730,6 @@ class StudentDashboardScreen extends StatelessWidget {
 
   Widget _buildStatCard({
     required IconData icon,
-    required String value,
     required String label,
     required Color bg,
     required Color iconColor,
@@ -754,18 +756,9 @@ class StudentDashboardScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Flexible(
             child: Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Flexible(
-            child: Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-              maxLines: 1,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -809,6 +802,8 @@ class StudentDashboardScreen extends StatelessWidget {
 
   /// Progress Tab
   Widget _buildProgressTab(Map<String, dynamic> userData) {
+    final progressData = _buildProgressData(userData);
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.withOpacity(0.2))),
@@ -817,19 +812,22 @@ class StudentDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Internship Progress", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("Internship Completion Rate", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
-                value: 0.65,
+                value: progressData["progress"] as double,
                 minHeight: 8,
                 backgroundColor: Colors.grey.withOpacity(0.2),
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade300),
               ),
             ),
             const SizedBox(height: 14),
-            const Text("65% Completed", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+            Text(
+              progressData["label"] as String,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey),
+            ),
           ],
         ),
       ),
