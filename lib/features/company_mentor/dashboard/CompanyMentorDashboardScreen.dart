@@ -60,7 +60,7 @@ class _CompanyMentorDashboardScreenState
             .where("status", isEqualTo: "completed") // Student finished it
             .get();
             
-        reviewCount = reviewSnap.docs.length;
+        reviewSnap.docs.length;
       }
     } catch (e) {
       debugPrint("Error fetching dashboard data: $e");
@@ -112,8 +112,7 @@ class _CompanyMentorDashboardScreenState
                     context,
                     destination: const TaskOfMentorScreen(),
                     icon: Icons.add_task,
-                    value: "Add",
-                    label: "Task",
+                    label: "Add Task", // Changed label to be more descriptive without number
                     bg: const Color(0xFFD6E9FF),
                     iconColor: Colors.blue,
                   ),
@@ -121,9 +120,8 @@ class _CompanyMentorDashboardScreenState
                   _buildNavCard(
                     context,
                     destination: const CompanyMentorPendingScreen(),
-                    icon: Icons.rate_review_outlined, // Updated Icon
-                    value: reviewCount.toString(),    // Dynamic Value
-                    label: "Review",                 // Updated Label
+                    icon: Icons.rate_review_outlined, 
+                    label: "Review Task", // Changed label to be more descriptive without number
                     bg: const Color(0xFFFFE4B5),
                     iconColor: Colors.orange,
                   ),
@@ -138,7 +136,6 @@ class _CompanyMentorDashboardScreenState
                     context,
                     destination: const CompanyMentorPerformanceScreen(),
                     icon: Icons.trending_up,
-                    value: "92%",
                     label: "Performance",
                     bg: const Color(0xFFDFF5EA),
                     iconColor: Colors.green,
@@ -148,7 +145,6 @@ class _CompanyMentorDashboardScreenState
                     context,
                     destination: const CollegeMentorsScreen(),
                     icon: Icons.school,
-                    value: "6",
                     label: "Mentors",
                     bg: const Color(0xFFE8D5C4),
                     iconColor: Colors.deepOrange,
@@ -218,11 +214,11 @@ class _CompanyMentorDashboardScreenState
     );
   }
 
-  Widget _buildNavCard(BuildContext context, {required Widget destination, required IconData icon, required String value, required String label, required Color bg, required Color iconColor}) {
+  Widget _buildNavCard(BuildContext context, {required Widget destination, required IconData icon, required String label, required Color bg, required Color iconColor}) {
     return Expanded(
       child: GestureDetector(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => destination)),
-        child: MiniStatCard(icon: icon, value: value, label: label, bg: bg, iconColor: iconColor),
+        child: MiniStatCard(icon: icon, label: label, bg: bg, iconColor: iconColor),
       ),
     );
   }
@@ -260,12 +256,11 @@ class _CompanyMentorDashboardScreenState
 
 class MiniStatCard extends StatelessWidget {
   final IconData icon;
-  final String value;
   final String label;
   final Color bg;
   final Color iconColor;
 
-  const MiniStatCard({super.key, required this.icon, required this.value, required this.label, required this.bg, required this.iconColor});
+  const MiniStatCard({super.key, required this.icon, required this.label, required this.bg, required this.iconColor});
 
   @override
   Widget build(BuildContext context) {
@@ -273,16 +268,16 @@ class MiniStatCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center, // Center items since number is removed
         children: [
           CircleAvatar(backgroundColor: Colors.white, radius: 18, child: Icon(icon, color: iconColor, size: 20)),
           const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(label, style: const TextStyle(fontSize: 11), maxLines: 1),
-              ],
+          Flexible(
+            child: Text(
+              label, 
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), // Clean bold text
+              maxLines: 1, 
+              overflow: TextOverflow.ellipsis
             ),
           ),
         ],
