@@ -69,7 +69,8 @@ class _CompanyMentorNotificationScreenState
             .get();
         
         if (userDoc.exists) {
-          senderName = userDoc.get('fullName') ?? userDoc.get('name') ?? 'Company Mentor';
+          final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+          senderName = (userData['fullName'] ?? 'Company Mentor').toString();
         }
       }
 

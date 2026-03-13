@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // ADDED THIS
 
+import 'package:flutter_application_2/features/faculty/attendance/faculty_attendance_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/company_list_screen.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_company_mentors_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_notification_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/student_list.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_student_list_screen.dart';
@@ -76,7 +78,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       case 1:
         return const GroupsScreen();
       case 2:
-        return const FacultyCalendarScreen();
+        return const FacultyAttendanceScreen();
       case 3:
         return const FacultySettingsScreen(); // Changed to match your import, make sure the name matches the actual class!
       default:
@@ -308,24 +310,42 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                   const SizedBox(height: 24),
 
                   const Text(
-                    "Recent Activity",
+                    "Mentor Coordination",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 12),
 
-                  const FacultyActionCard(
+                  FacultyActionCard(
                     icon: Icons.person,
                     title: "View Mentors",
                     subtitle: "Manage assigned mentors",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const FacultyCompanyMentorsScreen(),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 12),
 
-                  const FacultyActionCard(
-                    icon: Icons.work_outline,
-                    title: "Internship Details",
-                    subtitle: "View and update internships",
+                  FacultyActionCard(
+                    icon: Icons.calendar_month,
+                    title: "Manage Events",
+                    subtitle: "Open faculty calendar and reminders",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const FacultyCalendarScreen(showBackButton: true),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 20),
