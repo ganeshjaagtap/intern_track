@@ -1,276 +1,158 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../chat/ChatScreen.dart';
 
 class InternDetailsScreen extends StatelessWidget {
-  const InternDetailsScreen({super.key});
+  final Map<String, dynamic> studentData; // Pass dynamic data here
+
+  const InternDetailsScreen({super.key, required this.studentData});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Intern Details"),
-      ),
+    final String name = studentData['fullName'] ?? "Unnamed";
+    final String college = studentData['college_name'] ?? "N/A";
+    final String role = studentData['internshipRole'] ?? "Intern";
+    final String facultyId = studentData['facultyId'] ?? "";
+    final double progressValue = (studentData['totalProgress'] ?? 0.0).toDouble();
 
+    return Scaffold(
+      appBar: AppBar(title: const Text("Intern Details")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             /// PROFILE CARD
-
             Card(
               elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-
                 child: Row(
                   children: [
-
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 30,
-                      child: Icon(Icons.person, size: 30),
+                      child: Text(name[0].toUpperCase(), style: const TextStyle(fontSize: 24)),
                     ),
-
                     const SizedBox(width: 16),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-
-                        Text(
-                          "John Doe",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        SizedBox(height: 4),
-
-                        Text("ABC Engineering College"),
-
-                        SizedBox(height: 4),
-
-                        Text("Flutter Developer Intern"),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text(college),
+                          Text(role, style: const TextStyle(color: Colors.grey)),
+                        ],
+                      ),
                     ),
-
-                    const Spacer(),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        "92%",
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
+                    Text("${(progressValue * 100).toInt()}%", 
+                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
                   ],
                 ),
               ),
             ),
 
             const SizedBox(height: 20),
-
-            /// ATTENDANCE SUMMARY
-
-            const Text(
-              "Attendance Summary",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
+            const Text("Attendance Summary", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-
-                    Column(
-                      children: [
-                        Text("Total"),
-                        SizedBox(height: 4),
-                        Text("30",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                      ],
-                    ),
-
-                    Column(
-                      children: [
-                        Text("Present"),
-                        SizedBox(height: 4),
-                        Text("27",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                      ],
-                    ),
-
-                    Column(
-                      children: [
-                        Text("Absent"),
-                        SizedBox(height: 4),
-                        Text("3",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildAttendanceCard(), // You can pass actual attendance data here
 
             const SizedBox(height: 20),
-
-            /// PROGRESS SECTION
-
-            const Text(
-              "Internship Progress",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
+            const Text("Internship Progress", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
-            progressTile("Week 1", 1.0),
-            progressTile("Week 2", 0.8),
-            progressTile("Week 3", 0.6),
-            progressTile("Week 4", 0.9),
+            progressTile("Overall Completion", progressValue),
 
             const SizedBox(height: 20),
-
-            /// WEEKLY REPORTS
-
-            const Text(
-              "Weekly Reports",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
+            const Text("College Mentor", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
-            reportTile("Week 1", "Approved", Colors.green),
-            reportTile("Week 2", "Approved", Colors.green),
-            reportTile("Week 3", "Pending", Colors.orange),
-            reportTile("Week 4", "Not Submitted", Colors.red),
+            
+            /// ✅ DYNAMIC COLLEGE MENTOR FETCH
+            _fetchCollegeMentor(facultyId),
 
             const SizedBox(height: 20),
-
-            /// COLLEGE MENTOR CONTACT
-
-            const Text(
-              "College Mentor",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.school),
-                title: const Text("Prof. R. S. Sindge"),
-                subtitle: const Text("rssindge@college.edu"),
-
-                trailing: IconButton(
-                  icon: const Icon(Icons.message),
-
-                  onPressed: () {
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChatScreen(
-                          title: "Prof. R. S. Sindge",
-                        ),
-                      ),
-                    );
-
-                  },
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// ACTIVITY TIMELINE
-
-            const Text(
-              "Recent Activity",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            activityTile("Submitted Week 3 Report"),
-            activityTile("Completed Task: Login Screen"),
-            activityTile("Marked Present Today"),
-            activityTile("Uploaded GitHub Repository"),
+            const Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            activityTile("No recent activities logged."),
           ],
         ),
       ),
     );
   }
 
-  /// PROGRESS TILE
+  Widget _fetchCollegeMentor(String fId) {
+    if (fId.isEmpty) return const Text("No College Mentor Assigned.");
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .where('role', isEqualTo: 'faculty')
+          .where('facultyId', isEqualTo: fId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Text("Mentor details not found.");
+        final mentor = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+        final String mName = mentor['fullName'] ?? "Mentor";
 
-  Widget progressTile(String week, double progress) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          Text(week),
-
-          const SizedBox(height: 4),
-
-          LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(6),
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.school, color: Colors.blue),
+            title: Text(mName),
+            subtitle: Text(mentor['email'] ?? ""),
+            trailing: IconButton(
+              icon: const Icon(Icons.message, color: Colors.blue),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ChatScreen(title: mName),
+                ));
+              },
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  /// REPORT TILE
-
-  Widget reportTile(String week, String status, Color color) {
+  Widget _buildAttendanceCard() {
     return Card(
-      child: ListTile(
-        title: Text(week),
-        trailing: Text(
-          status,
-          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: const [
+            _stat("Total", "30"),
+            _stat("Present", "27"),
+            _stat("Absent", "3"),
+          ],
         ),
       ),
     );
   }
 
-  /// ACTIVITY TILE
+  Widget progressTile(String title, double progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(value: progress, minHeight: 8, borderRadius: BorderRadius.circular(6)),
+      ],
+    );
+  }
 
   Widget activityTile(String text) {
     return ListTile(
       leading: const Icon(Icons.check_circle, color: Colors.green),
       title: Text(text),
     );
+  }
+}
+
+class _stat extends StatelessWidget {
+  final String label, value;
+  const _stat(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      Text(label),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+    ]);
   }
 }

@@ -1,388 +1,206 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 
 class CompanyMentorPerformanceScreen extends StatefulWidget {
   const CompanyMentorPerformanceScreen({super.key});
 
   @override
-  State<CompanyMentorPerformanceScreen> createState() =>
-      _CompanyMentorPerformanceScreenState();
+  State<CompanyMentorPerformanceScreen> createState() => _CompanyMentorPerformanceScreenState();
 }
 
-class _CompanyMentorPerformanceScreenState
-    extends State<CompanyMentorPerformanceScreen> {
-
-  final List<Map<String, dynamic>> interns = [
-
-    {
-      "name": "John Doe",
-      "college": "ABC College",
-      "progress": 0.92,
-      "tasks": 14
-    },
-
-    {
-      "name": "Aisha Khan",
-      "college": "XYZ Institute",
-      "progress": 0.75,
-      "tasks": 11
-    },
-
-    {
-      "name": "Rohit Sharma",
-      "college": "ABC College",
-      "progress": 0.65,
-      "tasks": 9
-    },
-
-    {
-      "name": "Priya Mehta",
-      "college": "LMN University",
-      "progress": 0.85,
-      "tasks": 13
-    },
-
-    {
-      "name": "Karan Patel",
-      "college": "XYZ Institute",
-      "progress": 0.55,
-      "tasks": 7
-    },
-
-  ];
+class _CompanyMentorPerformanceScreenState extends State<CompanyMentorPerformanceScreen> {
+  final String currentMentorUid = FirebaseAuth.instance.currentUser?.uid ?? "";
 
   @override
   Widget build(BuildContext context) {
-
-    double average =
-        interns.map((e) => e["progress"]).reduce((a, b) => a + b) /
-            interns.length;
+    if (currentMentorUid.isEmpty) {
+      return const Scaffold(body: Center(child: Text("User session not found. Please log in.")));
+    }
 
     return Scaffold(
-
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: const Color(0xFF5F9ED6),
-        title: const Text("Intern Performance"),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.analytics),
-          )
-        ],
+        title: const Text("Intern Performance", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
+      body: FutureBuilder<DocumentSnapshot>(
+        // ✅ FIX 1: Use FutureBuilder for the one-time .get() call
+        future: FirebaseFirestore.instance.collection('user').doc(currentMentorUid).get(),
+        builder: (context, mentorSnap) {
+          if (mentorSnap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-      body: SingleChildScrollView(
+          if (!mentorSnap.hasData || !mentorSnap.data!.exists) {
+            return const Center(child: Text("Mentor profile not found."));
+          }
 
-        padding: const EdgeInsets.all(16),
+          final mentorData = mentorSnap.data!.data() as Map<String, dynamic>?;
+          final String mentorShortId = mentorData?['mentorId']?.toString() ?? "";
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          return StreamBuilder<QuerySnapshot>(
+            // ✅ Step 2: Stream interns assigned to this mentor
+            stream: FirebaseFirestore.instance
+                .collection('user')
+                .where('role', isEqualTo: 'student')
+                .where('companyMentorId', isEqualTo: mentorShortId)
+                .snapshots(),
+            builder: (context, studentSnapshot) {
+              if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            const SizedBox(height: 5),
+              final students = studentSnapshot.data?.docs ?? [];
 
-            const Text(
-              "Performance Overview",
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
-            ),
+              return StreamBuilder<QuerySnapshot>(
+                // ✅ Step 3: Stream all tasks assigned by this mentor
+                stream: FirebaseFirestore.instance
+                    .collection('tasks')
+                    .where('assignedByMentorId', isEqualTo: currentMentorUid)
+                    .snapshots(),
+                builder: (context, taskSnapshot) {
+                  if (taskSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-            const SizedBox(height: 20),
+                  final allTasks = taskSnapshot.data?.docs ?? [];
+                  
+                  // Processing Logic
+                  List<Map<String, dynamic>> performanceList = [];
+                  double totalProgressSum = 0;
 
-            /// SUMMARY CARDS
+                  for (var studentDoc in students) {
+                    try {
+                      final sData = studentDoc.data() as Map<String, dynamic>;
+                      String studentId = studentDoc.id;
 
-            Row(
-              children: [
+                      // Filter tasks for this specific student
+                      var studentTasks = allTasks.where((t) {
+                        final tData = t.data() as Map<String, dynamic>;
+                        return tData['assignedToStudentId'] == studentId;
+                      }).toList();
 
-                Expanded(
-                  child: _summaryCard(
-                    title: "Average",
-                    value: "${(average * 100).round()}%",
-                    icon: Icons.show_chart,
-                    color: const Color(0xFFBFD1E3),
-                  ),
-                ),
+                      var verifiedTasks = studentTasks.where((t) {
+                        final tData = t.data() as Map<String, dynamic>;
+                        return tData['status'] == 'verified';
+                      }).toList();
 
-                const SizedBox(width: 12),
+                      // ✅ FIX 2: Zero-division guard
+                      double progress = studentTasks.isEmpty 
+                          ? 0.0 
+                          : verifiedTasks.length / studentTasks.length;
+                      
+                      totalProgressSum += progress;
 
-                Expanded(
-                  child: _summaryCard(
-                    title: "Top Performer",
-                    value: "John",
-                    icon: Icons.emoji_events,
-                    color: const Color(0xFFE7D8AE),
-                  ),
-                ),
-              ],
-            ),
+                      performanceList.add({
+                        "name": sData['fullName'] ?? "Unnamed Intern",
+                        "college": sData['college_name'] ?? "N/A",
+                        "progress": progress,
+                        "tasks": verifiedTasks.length,
+                        "total": studentTasks.length,
+                      });
+                    } catch (e) {
+                      debugPrint("Error processing student row: $e");
+                    }
+                  }
 
-            const SizedBox(height: 12),
+                  double averageProgress = performanceList.isEmpty ? 0.0 : totalProgressSum / performanceList.length;
 
-            Row(
-              children: [
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Total Interns",
-                    value: interns.length.toString(),
-                    icon: Icons.people,
-                    color: const Color(0xFFC2D6CC),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Modules",
-                    value: "18",
-                    icon: Icons.menu_book,
-                    color: const Color(0xFFE4CFC3),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            /// SEARCH INTERN
-
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Search intern...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Intern Progress",
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// INTERN LIST
-
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: interns.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1),
-              itemBuilder: (context, index) {
-
-                final intern = interns[index];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    children: [
-
-                      Row(
-                        children: [
-
-                          CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              intern["name"][0],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-
-                                Text(
-                                  intern["name"],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-
-                                Text(
-                                  intern["college"],
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          Text(
-                            "${(intern["progress"] * 100).round()}%",
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      LinearProgressIndicator(
-                        value: intern["progress"],
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade300,
-                        color: Colors.green,
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                        children: [
-
-                          Text(
-                            "${intern["tasks"]} tasks completed",
-                            style: const TextStyle(fontSize: 12),
-                          ),
-
-                          const Text(
-                            "View Details",
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 30),
-
-            /// WEEKLY PERFORMANCE
-
-            const Text(
-              "Weekly Performance",
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 15),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-
-                _weekBar("Mon", 0.6),
-                _weekBar("Tue", 0.7),
-                _weekBar("Wed", 0.9),
-                _weekBar("Thu", 0.5),
-                _weekBar("Fri", 0.8),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            /// ACTION BUTTONS
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.download),
-                    label: const Text("Export Data"),
-                    style: ElevatedButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(
-                            vertical: 14)),
-                    onPressed: () {},
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("Refresh"),
-                    style: ElevatedButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(
-                            vertical: 14)),
-                    onPressed: () {},
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-          ],
-        ),
+                  return _buildMainUI(averageProgress, performanceList);
+                },
+              );
+            },
+          );
+        },
       ),
-
-      bottomNavigationBar:
-      const CompanyMentorBottomBar(currentIndex: 0),
+      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
     );
   }
 
-  /// SUMMARY CARD
+  // --- UI CONSTRUCTION ---
 
-  Widget _summaryCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _buildMainUI(double avg, List<Map<String, dynamic>> list) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(avg, list.length),
+          const SizedBox(height: 25),
+          const Text("Intern Progress List", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3243))),
+          const SizedBox(height: 12),
+          if (list.isEmpty)
+            const Center(child: Padding(padding: EdgeInsets.only(top: 50), child: Text("No interns found for your ID.")))
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: list.length,
+              itemBuilder: (context, index) => _buildInternCard(list[index]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(double avg, int total) {
+    return Row(
+      children: [
+        Expanded(child: _summaryCard("Avg. Success", "${(avg * 100).round()}%", Icons.auto_graph, const Color(0xFFD6E9FF))),
+        const SizedBox(width: 12),
+        Expanded(child: _summaryCard("My Students", "$total", Icons.face, const Color(0xFFDFF5EA))),
+      ],
+    );
+  }
+
+  Widget _buildInternCard(Map<String, dynamic> intern) {
+    double prog = intern['progress'];
+    Color progColor = prog < 0.4 ? Colors.red : (prog < 0.7 ? Colors.orange : Colors.green);
 
     return Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-
-      child: Row(
+      child: Column(
         children: [
-
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon),
-          ),
-
-          const SizedBox(width: 10),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
+              CircleAvatar(backgroundColor: progColor.withOpacity(0.1), child: Text(intern['name'][0], style: TextStyle(color: progColor, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(intern['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(intern['college'], style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  ],
+                ),
               ),
-
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text("${(prog * 100).round()}%", style: TextStyle(fontWeight: FontWeight.bold, color: progColor, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 15),
+          LinearProgressIndicator(
+            value: prog,
+            minHeight: 6,
+            backgroundColor: Colors.grey.shade100,
+            color: progColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("${intern['tasks']} / ${intern['total']} Tasks Verified", style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+              if (prog >= 0.8) const Icon(Icons.stars, color: Colors.orange, size: 16),
             ],
           )
         ],
@@ -390,34 +208,19 @@ class _CompanyMentorPerformanceScreenState
     );
   }
 
-  /// WEEK BAR
-
-  Widget _weekBar(String day, double value) {
-
-    return Column(
-      children: [
-
-        Container(
-          width: 18,
-          height: 80,
-          alignment: Alignment.bottomCenter,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Container(
-            height: 80 * value,
-            decoration: BoxDecoration(
-              color: Colors.green,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 5),
-
-        Text(day, style: const TextStyle(fontSize: 12)),
-      ],
+  Widget _summaryCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: Colors.black45),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        ],
+      ),
     );
   }
 }

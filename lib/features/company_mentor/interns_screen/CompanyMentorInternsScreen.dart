@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../bottom_bar/company_mentor_bottom_bar.dart';
 import 'InternDetailsScreen.dart';
 
@@ -6,182 +8,113 @@ class CompanyMentorInternsScreen extends StatefulWidget {
   const CompanyMentorInternsScreen({super.key});
 
   @override
-  State<CompanyMentorInternsScreen> createState() =>
-      _CompanyMentorInternsScreenState();
+  State<CompanyMentorInternsScreen> createState() => _CompanyMentorInternsScreenState();
 }
 
-class _CompanyMentorInternsScreenState
-    extends State<CompanyMentorInternsScreen> {
-
+class _CompanyMentorInternsScreenState extends State<CompanyMentorInternsScreen> {
   TextEditingController searchController = TextEditingController();
-
-  final List<Map<String, dynamic>> interns = [
-
-    {
-      "name": "John Doe",
-      "college": "ABC Engineering College",
-      "progress": "92%"
-    },
-
-    {
-      "name": "Aisha Khan",
-      "college": "XYZ Institute",
-      "progress": "75%"
-    },
-
-    {
-      "name": "Rohit Sharma",
-      "college": "ABC Engineering College",
-      "progress": "65%"
-    },
-
-    {
-      "name": "Priya Mehta",
-      "college": "LMN University",
-      "progress": "85%"
-    },
-
-    {
-      "name": "Karan Patel",
-      "college": "XYZ Institute",
-      "progress": "55%"
-    },
-  ];
-
-  List<Map<String, dynamic>> filteredInterns = [];
-
-  @override
-  void initState() {
-    super.initState();
-    filteredInterns = interns;
-  }
-
-  void searchIntern(String query) {
-
-    final results = interns.where((intern) {
-      final name = intern["name"].toLowerCase();
-      final input = query.toLowerCase();
-      return name.contains(input);
-    }).toList();
-
-    setState(() {
-      filteredInterns = results;
-    });
-  }
+  String searchQuery = "";
 
   @override
   Widget build(BuildContext context) {
+    final String currentAuthUid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
-
       appBar: AppBar(
-        title: const Text("Interns"),
+        backgroundColor: const Color(0xFF5F9ED6),
+        title: const Text("My Interns", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
+      body: FutureBuilder<DocumentSnapshot>(
+        // 1. Get the current Mentor's document to find their "mentorId" (e.g., "003")
+        future: FirebaseFirestore.instance.collection('user').doc(currentAuthUid).get(),
+        builder: (context, mentorSnapshot) {
+          if (mentorSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+          if (!mentorSnapshot.hasData || !mentorSnapshot.data!.exists) {
+            return const Center(child: Text("Mentor profile not found."));
+          }
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          final mentorData = mentorSnapshot.data!.data() as Map<String, dynamic>;
+          
+          // ✅ This is the value "003" from your mentor profile
+          final String mentorProfileId = mentorData['mentorId']?.toString() ?? "";
 
-            const Text(
-              "Intern Directory",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Intern Directory", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
-
-            /// SEARCH BAR
-
-            TextField(
-              controller: searchController,
-              onChanged: searchIntern,
-              decoration: InputDecoration(
-                hintText: "Search intern...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                TextField(
+                  onChanged: (val) => setState(() => searchQuery = val.toLowerCase()),
+                  decoration: InputDecoration(
+                    hintText: "Search intern...",
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.grey.shade200,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
-            ),
+                const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    // ✅ COMPARISON: student.companyMentorId == mentor.mentorId
+                    stream: FirebaseFirestore.instance
+                        .collection('user')
+                        .where('role', isEqualTo: 'student')
+                        .where('companyMentorId', isEqualTo: mentorProfileId) 
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-            /// INTERN LIST
+                      // DEBUG: Open your console to see if the IDs match
+                      print("DEBUG: Searching students with companyMentorId: '$mentorProfileId'");
+                      if (snapshot.hasData) {
+                        print("DEBUG: Found ${snapshot.data!.docs.length} students");
+                      }
 
-            Expanded(
-              child: ListView.separated(
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Center(
+                          child: Text("No interns found assigned to Mentor ID: $mentorProfileId"),
+                        );
+                      }
 
-                itemCount: filteredInterns.length,
+                      final docs = snapshot.data!.docs.where((doc) {
+                        final name = (doc['fullName'] ?? '').toString().toLowerCase();
+                        return name.contains(searchQuery);
+                      }).toList();
 
-                separatorBuilder: (_, __) => const Divider(),
-
-                itemBuilder: (context, index) {
-
-                  final intern = filteredInterns[index];
-
-                  return ListTile(
-
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InternDetailsScreen(),
-                        ),
+                      return ListView.separated(
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final data = docs[index].data() as Map<String, dynamic>;
+                          return ListTile(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => InternDetailsScreen(studentData: data),
+                            )),
+                            leading: CircleAvatar(child: Text(data['fullName']?[0] ?? "?")),
+                            title: Text(data['fullName'] ?? "Unnamed"),
+                            subtitle: Text(data['college_name'] ?? "N/A"),
+                            trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                          );
+                        },
                       );
                     },
-
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue.shade100,
-                      child: Text(
-                        intern["name"][0],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    title: Text(
-                      intern["name"],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    subtitle: Text(intern["college"]),
-
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        intern["progress"],
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
-
       bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 1),
     );
   }

@@ -1,410 +1,316 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../bottom_bar/company_mentor_bottom_bar.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Add this to pubspec
 
 class CompanyMentorPendingScreen extends StatefulWidget {
   const CompanyMentorPendingScreen({super.key});
 
   @override
-  State<CompanyMentorPendingScreen> createState() =>
-      _CompanyMentorPendingScreenState();
+  State<CompanyMentorPendingScreen> createState() => _CompanyMentorPendingScreenState();
 }
 
-class _CompanyMentorPendingScreenState
-    extends State<CompanyMentorPendingScreen> {
+class _CompanyMentorPendingScreenState extends State<CompanyMentorPendingScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final String currentMentorUid = FirebaseAuth.instance.currentUser!.uid;
 
-  final List<Map<String, dynamic>> pendingReports = [
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
-    {
-      "name": "John Doe",
-      "college": "ABC College",
-      "week": "Week 8",
-      "title": "UI Module Report",
-      "date": "2 days ago",
-    },
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
-    {
-      "name": "Aisha Khan",
-      "college": "XYZ Institute",
-      "week": "Week 7",
-      "title": "Backend API Integration",
-      "date": "1 day ago",
-    },
-
-    {
-      "name": "Rohit Sharma",
-      "college": "ABC College",
-      "week": "Week 6",
-      "title": "Database Module",
-      "date": "3 days ago",
-    },
-
-    {
-      "name": "Priya Mehta",
-      "college": "LMN University",
-      "week": "Week 5",
-      "title": "Authentication System",
-      "date": "Today",
-    },
-
-  ];
+  Future<void> _updateTaskStatus(String docId, String newStatus, String message) async {
+    try {
+      await FirebaseFirestore.instance.collection('tasks').doc(docId).update({
+        'status': newStatus,
+        'reviewedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message), 
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            backgroundColor: newStatus == 'verified' ? Colors.green.shade600 : Colors.red.shade600,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF5F9ED6),
-        title: const Text("Pending Reports"),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.notifications_none),
-          )
-        ],
-      ),
-
-      body: SingleChildScrollView(
-
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: const Color(0xFFF3F6F9),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 120.0,
+              floating: false,
+              pinned: true,
+              backgroundColor: const Color(0xFF5F9ED6),
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                centerTitle: true,
+                title: const Text("Approvals", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                background: Container(color: const Color(0xFF5F9ED6)),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickyTabBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.white,
+                  indicatorWeight: 4,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  unselectedLabelColor: Colors.white70,
+                  tabs: const [
+                    Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.pending_actions, size: 18), SizedBox(width: 8), Text("Pending")])),
+                    Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.verified, size: 18), SizedBox(width: 8), Text("Verified")])),
+                  ],
+                ),
+              ),
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
           children: [
-
-            const Text(
-              "Reports Awaiting Approval",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            /// SUMMARY CARDS
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Total Pending",
-                    value: pendingReports.length.toString(),
-                    icon: Icons.pending_actions,
-                    color: const Color(0xFFE7D8AE),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Reviewed Today",
-                    value: "3",
-                    icon: Icons.check_circle,
-                    color: const Color(0xFFC2D6CC),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Rejected",
-                    value: "1",
-                    icon: Icons.cancel,
-                    color: const Color(0xFFE4CFC3),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _summaryCard(
-                    title: "Approved",
-                    value: "12",
-                    icon: Icons.verified,
-                    color: const Color(0xFFBFD1E3),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 25),
-
-            /// SEARCH BAR
-
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Search report...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Pending Reports",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// REPORT LIST
-
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: pendingReports.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1),
-              itemBuilder: (context, index) {
-
-                final report = pendingReports[index];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-
-                  child: Column(
-                    children: [
-
-                      Row(
-                        children: [
-
-                          CircleAvatar(
-                            backgroundColor: Colors.orange.shade100,
-                            child: Text(
-                              report["name"][0],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-
-                                Text(
-                                  report["title"],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-
-                                Text(
-                                  "${report["name"]} • ${report["college"]}",
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey),
-                                ),
-
-                                const SizedBox(height: 3),
-
-                                Text(
-                                  report["week"],
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          Text(
-                            report["date"],
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Row(
-                        children: [
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.visibility),
-                              label: const Text("View"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {},
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.check),
-                              label: const Text("Approve"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {
-
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          "Report Approved")),
-                                );
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.close),
-                              label: const Text("Reject"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 12),
-                              ),
-                              onPressed: () {
-
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          "Report Rejected")),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 30),
-
-            /// ACTION BUTTONS
-
-            Row(
-              children: [
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.download),
-                    label: const Text("Export Reports"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14),
-                    ),
-                    onPressed: () {},
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("Refresh"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14),
-                    ),
-                    onPressed: () {},
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
+            _buildTaskList(statusFilter: 'completed', isReviewable: true),
+            _buildTaskList(statusFilter: 'verified', isReviewable: false),
           ],
         ),
       ),
-
-      bottomNavigationBar:
-      const CompanyMentorBottomBar(currentIndex: 0),
+      bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
     );
   }
 
-  /// SUMMARY CARD
+  Widget _buildTaskList({required String statusFilter, required bool isReviewable}) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('tasks')
+          .where('assignedByMentorId', isEqualTo: currentMentorUid)
+          .where('status', isEqualTo: statusFilter)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF5F9ED6)));
+        }
 
-  Widget _summaryCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
+        final tasks = snapshot.data?.docs ?? [];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
+        if (tasks.isEmpty) {
+          return _buildEmptyState(isReviewable, statusFilter);
+        }
 
-      child: Row(
-        children: [
+        return AnimationLimiter(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final taskDoc = tasks[index];
+              final task = taskDoc.data() as Map<String, dynamic>;
+              final String docId = taskDoc.id;
 
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon),
+              return AnimationConfiguration.staggeredList(
+                position: index,
+                duration: const Duration(milliseconds: 500),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: _buildTaskCard(task, docId, isReviewable),
+                  ),
+                ),
+              );
+            },
           ),
+        );
+      },
+    );
+  }
 
-          const SizedBox(width: 10),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
-
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
-          )
+  Widget _buildTaskCard(Map<String, dynamic> task, String docId, bool isReviewable) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _buildAnimatedAvatar(task['studentName'] ?? "?", isReviewable),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(task['title'] ?? "Task Title", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF2D3243))),
+                            const SizedBox(height: 4),
+                            Text("Intern: ${task['studentName'] ?? 'Unknown'}", style: TextStyle(color: Colors.blueGrey.shade400, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      if (!isReviewable) const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  const Divider(color: Color(0xFFF1F4F8)),
+                  const SizedBox(height: 10),
+                  Text(task['description'] ?? "No description provided.", style: const TextStyle(fontSize: 14, color: Color(0xFF5A637A), height: 1.5)),
+                  if (!isReviewable) ...[
+                    const SizedBox(height: 15),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade400),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Verified on: ${task['reviewedAt'] != null ? DateFormat('MMM dd, yyyy').format((task['reviewedAt'] as Timestamp).toDate()) : 'Recently'}",
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ]
+                ],
+              ),
+            ),
+            if (isReviewable)
+              Container(
+                decoration: BoxDecoration(color: Colors.grey.shade50),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => _updateTaskStatus(docId, 'todo', "Task Rejected"),
+                        icon: const Icon(Icons.close, size: 18, color: Colors.redAccent),
+                        label: const Text("Reject", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _updateTaskStatus(docId, 'verified', "Task Approved"),
+                        icon: const Icon(Icons.check, size: 18, color: Colors.white),
+                        label: const Text("Approve", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
+
+  Widget _buildAnimatedAvatar(String name, bool isPending) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isPending 
+            ? [Colors.orange.shade300, Colors.orange.shade600] 
+            : [const Color(0xFF5F9ED6), const Color(0xFF4A89C2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: (isPending ? Colors.orange : Colors.blue).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+      ),
+      child: Center(child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
+    );
+  }
+
+  Widget _buildEmptyState(bool isReviewable, String statusFilter) {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(seconds: 1),
+      builder: (context, double value, child) {
+        return Opacity(
+          opacity: value,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(30),
+                  decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20)]),
+                  child: Icon(isReviewable ? Icons.auto_awesome : Icons.assignment_outlined, size: 80, color: Colors.grey.shade300),
+                ),
+                const SizedBox(height: 25),
+                Text(
+                  isReviewable ? "All caught up!" : "No verified tasks",
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3243)),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "No tasks found for ${statusFilter == 'completed' ? 'review' : 'approval'}.",
+                  style: TextStyle(color: Colors.blueGrey.shade300),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  _StickyTabBarDelegate(this._tabBar);
+  final TabBar _tabBar;
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: const Color(0xFF5F9ED6),
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) => false;
 }
