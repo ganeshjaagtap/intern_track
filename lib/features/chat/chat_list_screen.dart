@@ -55,11 +55,8 @@ class ChatListScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
-              _HeaderCard(
-                title: 'Your inbox',
-                subtitle: _roleSubtitle(role),
-              ),
-              const SizedBox(height: 20),
+              _InboxHeader(subtitle: _roleSubtitle(role)),
+              const SizedBox(height: 18),
               if (role == 'student')
                 _StudentChats(
                   currentUid: currentUser.uid,
@@ -105,112 +102,135 @@ class _StudentChats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final facultyId = (currentUserData['facultyId'] ?? '').toString().trim();
-    final mentorId = (currentUserData['companyMentorId'] ?? '').toString().trim();
+    final facultyUid = (currentUserData['facultyId'] ?? '').toString().trim();
+    final mentorUid = (currentUserData['companyMentorId'] ?? '').toString().trim();
+    final facultyName = (currentUserData['collegeMentor'] ?? 'Faculty Mentor')
+        .toString()
+        .trim();
+    final mentorName = (currentUserData['companyMentor'] ?? 'Company Mentor')
+        .toString()
+        .trim();
     final groupId = (currentUserData['assignedGroupId'] ?? '').toString().trim();
 
-    if (groupId.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.groups_outlined,
-        title: 'No group assigned',
-        message: 'Assign the student to a group before opening channel chats.',
-      );
-    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PeopleSection(
+          title: 'Mentors',
+          emptyMessage: 'No mentors are assigned to this student yet.',
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _DirectChatLookupTile(
+                currentUid: currentUid,
+                currentUserName: currentUserName,
+                otherUserRef: facultyUid,
+                role: 'faculty',
+                lookupField: 'facultyId',
+                title: 'Faculty Mentor',
+                fallbackName: facultyName.isEmpty ? 'Faculty Mentor' : facultyName,
+                subtitle: facultyName.isEmpty ? 'No faculty mentor assigned yet.' : facultyName,
+                icon: Icons.school_rounded,
+                accentColor: const Color(0xFF2563EB),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _DirectChatLookupTile(
+                currentUid: currentUid,
+                currentUserName: currentUserName,
+                otherUserRef: mentorUid,
+                role: 'mentor',
+                lookupField: 'mentorId',
+                title: 'Company Mentor',
+                fallbackName: mentorName.isEmpty ? 'Company Mentor' : mentorName,
+                subtitle: mentorName.isEmpty ? 'No company mentor assigned yet.' : mentorName,
+                icon: Icons.business_center_rounded,
+                accentColor: const Color(0xFF0F766E),
+              ),
+            ),
+          ],
+        ),
+        if (groupId.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('groups').doc(groupId).snapshots(),
+            builder: (context, groupSnapshot) {
+              if (groupSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('groups').doc(groupId).snapshots(),
-      builder: (context, groupSnapshot) {
-        if (groupSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+              final groupData = groupSnapshot.data?.data() ?? <String, dynamic>{};
+              final groupName = (groupData['groupName'] ??
+                      currentUserData['assignedGroupName'] ??
+                      'Project Group')
+                  .toString()
+                  .trim();
+              final studentIds = List<String>.from(groupData['studentIds'] ?? [currentUid]);
 
-        final groupData = groupSnapshot.data?.data() ?? <String, dynamic>{};
-        final groupName = (groupData['groupName'] ??
-                currentUserData['assignedGroupName'] ??
-                'Project Group')
-            .toString()
-            .trim();
-        final studentIds = List<String>.from(groupData['studentIds'] ?? [currentUid]);
-
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('user')
-              .where('role', isEqualTo: 'faculty')
-              .where('facultyId', isEqualTo: facultyId)
-              .limit(1)
-              .snapshots(),
-          builder: (context, facultySnapshot) {
-            final facultyDoc = facultySnapshot.data?.docs.isNotEmpty == true
-                ? facultySnapshot.data!.docs.first
-                : null;
-            final facultyUid = facultyDoc?.id ?? '';
-
-            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('user')
-                  .where('role', isEqualTo: 'mentor')
-                  .where('mentorId', isEqualTo: mentorId)
-                  .limit(1)
-                  .snapshots(),
-              builder: (context, mentorSnapshot) {
-                final mentorDoc = mentorSnapshot.data?.docs.isNotEmpty == true
-                    ? mentorSnapshot.data!.docs.first
-                    : null;
-                final mentorUid = mentorDoc?.id ?? '';
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionTitle('Group Channels'),
-                    const SizedBox(height: 12),
-                    _GroupChatTile(
-                      currentUid: currentUid,
-                      chatId: groupId,
-                      infoId: groupId,
-                      title: 'Project Group',
-                      subtitle: groupName,
-                      currentUserName: currentUserName,
-                      emptyMessage: 'No project group found.',
-                      participantIds: studentIds,
-                      accentColor: const Color(0xFF7C3AED),
-                    ),
-                    const SizedBox(height: 12),
-                    _GroupChatTile(
-                      currentUid: currentUid,
-                      chatId: _academicChatId(facultyId, groupId),
-                      infoId: groupId,
-                      title: 'Academic Channel',
-                      subtitle: groupName,
-                      currentUserName: currentUserName,
-                      emptyMessage: 'No faculty mentor assigned yet.',
-                      participantIds: [
-                        ...studentIds,
-                        if (facultyUid.isNotEmpty) facultyUid,
-                      ],
-                      accentColor: const Color(0xFF2563EB),
-                    ),
-                    const SizedBox(height: 12),
-                    _GroupChatTile(
-                      currentUid: currentUid,
-                      chatId: _industryChatId(mentorId, groupId),
-                      infoId: groupId,
-                      title: 'Industry Channel',
-                      subtitle: groupName,
-                      currentUserName: currentUserName,
-                      emptyMessage: 'No company mentor assigned yet.',
-                      participantIds: [
-                        ...studentIds,
-                        if (mentorUid.isNotEmpty) mentorUid,
-                      ],
-                      accentColor: const Color(0xFF0F766E),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PeopleSection(
+                    title: 'Group Channels',
+                    emptyMessage: 'No group channels available.',
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _GroupChatTile(
+                          currentUid: currentUid,
+                          chatId: groupId,
+                          infoId: groupId,
+                          title: 'Project Group',
+                          subtitle: groupName,
+                          currentUserName: currentUserName,
+                          emptyMessage: 'No project group found.',
+                          participantIds: studentIds,
+                          accentColor: const Color(0xFF7C3AED),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _GroupChatTile(
+                          currentUid: currentUid,
+                          chatId: _academicChatId(facultyUid, groupId),
+                          infoId: groupId,
+                          title: 'Academic Channel',
+                          subtitle: groupName,
+                          currentUserName: currentUserName,
+                          emptyMessage: 'No faculty mentor assigned yet.',
+                          participantIds: [
+                            ...studentIds,
+                            if (facultyUid.isNotEmpty) facultyUid,
+                          ],
+                          accentColor: const Color(0xFF2563EB),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _GroupChatTile(
+                          currentUid: currentUid,
+                          chatId: _industryChatId(mentorUid, groupId),
+                          infoId: groupId,
+                          title: 'Industry Channel',
+                          subtitle: groupName,
+                          currentUserName: currentUserName,
+                          emptyMessage: 'No company mentor assigned yet.',
+                          participantIds: [
+                            ...studentIds,
+                            if (mentorUid.isNotEmpty) mentorUid,
+                          ],
+                          accentColor: const Color(0xFF0F766E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ],
     );
   }
 }
@@ -478,6 +498,81 @@ class _UserLookupTile extends StatelessWidget {
   }
 }
 
+class _DirectChatLookupTile extends StatelessWidget {
+  final String currentUid;
+  final String currentUserName;
+  final String otherUserRef;
+  final String role;
+  final String lookupField;
+  final String title;
+  final String fallbackName;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+
+  const _DirectChatLookupTile({
+    required this.currentUid,
+    required this.currentUserName,
+    required this.otherUserRef,
+    required this.role,
+    required this.lookupField,
+    required this.title,
+    required this.fallbackName,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (otherUserRef.isEmpty) {
+      return _DisabledChatCard(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        accentColor: accentColor,
+      );
+    }
+
+    return StreamBuilder<_ResolvedUser?>(
+      stream: _resolveUserStream(
+        refValue: otherUserRef,
+        role: role,
+        lookupField: lookupField,
+      ),
+      builder: (context, snapshot) {
+        final resolvedUser = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting && resolvedUser == null) {
+          return const _LoadingChatCard();
+        }
+
+        if (resolvedUser == null) {
+          return _DisabledChatCard(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            accentColor: accentColor,
+          );
+        }
+
+        final displayName = _displayName(resolvedUser.data, fallback: fallbackName);
+        final imageUrl = (resolvedUser.data['profileImageUrl'] ?? '').toString();
+
+        return _DirectChatTile(
+          currentUid: currentUid,
+          currentUserName: currentUserName,
+          otherUid: resolvedUser.uid,
+          title: displayName,
+          subtitle: title,
+          imageUrl: imageUrl,
+          icon: icon,
+          accentColor: accentColor,
+        );
+      },
+    );
+  }
+}
+
 class _DirectChatTile extends StatelessWidget {
   final String currentUid;
   final String currentUserName;
@@ -629,21 +724,22 @@ class _ChatPreviewTile extends StatelessWidget {
             : ((unreadMap[currentUid] as num?)?.toInt() ?? 0);
 
         return Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE8EEF5)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x0F0F172A),
-                    blurRadius: 18,
-                    offset: Offset(0, 10),
+                    color: Color(0x0A0F172A),
+                    blurRadius: 16,
+                    offset: Offset(0, 8),
                   ),
                 ],
               ),
@@ -670,16 +766,17 @@ class _ChatPreviewTile extends StatelessWidget {
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         Text(
                           lastMessage.isEmpty ? fallbackSubtitle : lastMessage,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 13,
                             color: lastMessage.isEmpty
                                 ? const Color(0xFF64748B)
                                 : const Color(0xFF334155),
+                            fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
                       ],
@@ -691,10 +788,12 @@ class _ChatPreviewTile extends StatelessWidget {
                     children: [
                       Text(
                         _formatTime(lastUpdated),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF16A34A),
+                          color: unreadCount > 0
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -785,7 +884,30 @@ class _PeopleSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle(title),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         if (children.isEmpty)
           _EmptySectionCard(message: emptyMessage)
@@ -796,73 +918,37 @@ class _PeopleSection extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  final String title;
+class _InboxHeader extends StatelessWidget {
   final String subtitle;
 
-  const _HeaderCard({required this.title, required this.subtitle});
+  const _InboxHeader({required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16324F), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Realtime Firestore chat',
+            'Your inbox',
             style: TextStyle(
-              color: Color(0xFFBFDBFE),
-              fontSize: 12,
-              letterSpacing: 0.3,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             style: const TextStyle(
-              color: Color(0xFFE0F2FE),
+              color: Color(0xFF64748B),
               fontSize: 13.5,
-              height: 1.3,
+              height: 1.35,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF0F172A),
       ),
     );
   }
@@ -877,7 +963,7 @@ class _LoadingChatCard extends StatelessWidget {
       height: 88,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
       ),
       child: const Center(child: CircularProgressIndicator()),
     );
@@ -903,8 +989,8 @@ class _DisabledChatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8EEF5)),
       ),
       child: Row(
         children: [
@@ -956,8 +1042,8 @@ class _EmptySectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8EEF5)),
       ),
       child: Text(
         message,
@@ -1033,6 +1119,16 @@ class _ChannelSummary {
   });
 }
 
+class _ResolvedUser {
+  final String uid;
+  final Map<String, dynamic> data;
+
+  const _ResolvedUser({
+    required this.uid,
+    required this.data,
+  });
+}
+
 List<_GroupSummary> _extractGroups(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
   final groups = <String, _GroupSummary>{};
 
@@ -1057,6 +1153,47 @@ List<_GroupSummary> _extractGroups(List<QueryDocumentSnapshot<Map<String, dynami
 String _displayName(Map<String, dynamic> data, {required String fallback}) {
   final fullName = (data['fullName'] ?? data['name'] ?? '').toString().trim();
   return fullName.isEmpty ? fallback : fullName;
+}
+
+Stream<_ResolvedUser?> _resolveUserStream({
+  required String refValue,
+  required String role,
+  required String lookupField,
+}) async* {
+  if (refValue.trim().isEmpty) {
+    yield null;
+    return;
+  }
+
+  final directStream = FirebaseFirestore.instance
+      .collection('user')
+      .doc(refValue)
+      .snapshots();
+
+  await for (final doc in directStream) {
+    if (doc.exists) {
+      final data = doc.data() ?? <String, dynamic>{};
+      final docRole = (data['role'] ?? '').toString().trim().toLowerCase();
+      if (docRole.isEmpty || docRole == role) {
+        yield _ResolvedUser(uid: doc.id, data: data);
+        continue;
+      }
+    }
+
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('user')
+        .where('role', isEqualTo: role)
+        .where(lookupField, isEqualTo: refValue)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final resolvedDoc = querySnapshot.docs.first;
+      yield _ResolvedUser(uid: resolvedDoc.id, data: resolvedDoc.data());
+    } else {
+      yield null;
+    }
+  }
 }
 
 String _academicChatId(String facultyId, String groupId) {
