@@ -26,6 +26,12 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
     loadStudents();
   }
 
+  // Helper to check if the selected date is today
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<void> loadMentor() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -47,7 +53,7 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
         temp.add({
           "name": data["fullName"] ?? "Student",
           "enrollmentNo": data["enrollmentNo"] ?? "",
-          "status": "", // ✅ CHANGED: Set to empty so no tab is selected by default
+          "status": "", 
         });
       }
 
@@ -75,6 +81,9 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
   }
 
   void updateStatus(int index, String status) {
+    // Prevent updating status if it's not today
+    if (!_isToday(selectedDate)) return;
+
     setState(() {
       interns[index]["status"] = status;
     });
@@ -85,7 +94,14 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
   int leaveCount() => interns.where((e) => e["status"] == "leave").length;
 
   Future<void> saveAttendance() async {
-    // Validation: Ensure all interns have a status selected
+    // ✅ CHANGE: Added check to prevent saving if date is not today
+    if (!_isToday(selectedDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Past attendance records cannot be modified."), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     bool allMarked = interns.every((e) => e["status"].isNotEmpty);
     if (!allMarked) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,8 +169,21 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
                 _buildDateHeader(),
                 _buildSummaryRow(),
                 const Divider(height: 1),
+                // ✅ CHANGE: Show warning if looking at past date
+                if (!_isToday(selectedDate))
+                  Container(
+                    width: double.infinity,
+                    color: Colors.amber.shade100,
+                    padding: const EdgeInsets.all(8),
+                    child: const Text(
+                      "Viewing past record (Read-Only Mode)",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.brown, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 Expanded(child: _buildInternList()),
-                _buildSaveButton(),
+                // ✅ CHANGE: Hide save button if it's not today
+                if (_isToday(selectedDate)) _buildSaveButton(),
               ],
             ),
       bottomNavigationBar: const CompanyMentorBottomBar(currentIndex: 0),
@@ -262,9 +291,12 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
   }
 
   Widget _statusButton(int index, String value, String text, Color color, bool active) {
+    // ✅ CHANGE: Disable tap if it's not today
+    bool isToday = _isToday(selectedDate);
+    
     return Expanded(
       child: GestureDetector(
-        onTap: () => updateStatus(index, value),
+        onTap: isToday ? () => updateStatus(index, value) : null,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -274,7 +306,10 @@ class _TodayAttendanceScreenState extends State<TodayAttendanceScreen> {
           child: Center(
             child: Text(
               text,
-              style: TextStyle(color: active ? Colors.white : Colors.black87, fontWeight: active ? FontWeight.bold : FontWeight.normal),
+              style: TextStyle(
+                color: active ? Colors.white : (isToday ? Colors.black87 : Colors.grey), 
+                fontWeight: active ? FontWeight.bold : FontWeight.normal
+              ),
             ),
           ),
         ),
