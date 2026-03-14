@@ -84,6 +84,8 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                 final String college =
                     (data['college'] ?? data['collegeName'] ?? 'Not Set')
                         .toString();
+                final String profileImageUrl =
+                    (data['profileImageUrl'] ?? '').toString();
 
                 return _buildProfileContent(
                   context,
@@ -93,6 +95,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                   role: role,
                   dept: dept,
                   college: college,
+                  profileImageUrl: profileImageUrl,
                 );
               },
             ),
@@ -107,6 +110,7 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
     required String role,
     required String dept,
     required String college,
+    String profileImageUrl = '',
   }) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -134,11 +138,16 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
                     CircleAvatar(
                       radius: 44,
                       backgroundColor: primaryBlue.withOpacity(0.1),
-                      child:  Icon(
-                        Icons.person,
-                        size: 42,
-                        color: primaryBlue,
-                      ),
+                      backgroundImage: profileImageUrl.isNotEmpty
+                          ? NetworkImage(profileImageUrl)
+                          : null,
+                      child: profileImageUrl.isEmpty
+                          ? Icon(
+                              Icons.person,
+                              size: 42,
+                              color: primaryBlue,
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 20),
                     Expanded(

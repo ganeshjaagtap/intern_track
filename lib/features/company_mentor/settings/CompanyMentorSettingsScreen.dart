@@ -26,6 +26,7 @@ class _CompanyMentorSettingsScreenState
   String mentorId = "Not Set";
   String phoneNumber = "Not Set";
   String companyAddress = "Not Set";
+  String profileImageUrl = "";
   bool isLoading = true;
 
   @override
@@ -63,6 +64,7 @@ class _CompanyMentorSettingsScreenState
                 (data["phoneNumber"] ?? data["phone"] ?? "Not Set").toString();
             companyAddress =
                 (data["company_address"] ?? "Not Set").toString();
+            profileImageUrl = (data["profileImageUrl"] ?? "").toString();
           });
         }
       }
@@ -141,6 +143,10 @@ class _CompanyMentorSettingsScreenState
                       CircleAvatar(
                         radius: 30,
                         backgroundColor: primaryColor.withOpacity(0.2),
+                        backgroundImage: !isLoading &&
+                                profileImageUrl.isNotEmpty
+                            ? NetworkImage(profileImageUrl)
+                            : null,
                         child: isLoading
                             ? const SizedBox(
                                 width: 24,
@@ -149,16 +155,18 @@ class _CompanyMentorSettingsScreenState
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(
-                                name.isNotEmpty && name != "Loading..."
-                                    ? name[0].toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryColor,
-                                  fontSize: 24,
-                                ),
-                              ),
+                            : profileImageUrl.isEmpty
+                                ? Text(
+                                    name.isNotEmpty && name != "Loading..."
+                                        ? name[0].toUpperCase()
+                                        : "?",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                      fontSize: 24,
+                                    ),
+                                  )
+                                : null,
                       ),
                       const SizedBox(width: 14),
                       Expanded(

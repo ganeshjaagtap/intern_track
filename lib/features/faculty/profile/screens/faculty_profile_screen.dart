@@ -71,6 +71,7 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
           final String dept = data['dept'] ?? 'Not Set';
           final String college = data['college'] ?? 'Not Set';
           final String phone = data['phoneNumber'] ?? data['phone'] ?? 'Not Set';
+          final String imageUrl = (data['profileImageUrl'] ?? '').toString();
 
           // Determine which ID to show
           final String uniqueId = (role == 'faculty')
@@ -110,8 +111,10 @@ class _FacultySettingsScreenState extends State<FacultySettingsScreen> {
                                   backgroundColor: primaryBlue.withOpacity(0.1),
                                   backgroundImage: profileImage != null
                                       ? FileImage(profileImage!)
-                                      : null,
-                                  child: profileImage == null
+                                      : (imageUrl.isNotEmpty
+                                          ? NetworkImage(imageUrl)
+                                          : null),
+                                  child: profileImage == null && imageUrl.isEmpty
                                       ? const Icon(
                                           Icons.person,
                                           size: 42,

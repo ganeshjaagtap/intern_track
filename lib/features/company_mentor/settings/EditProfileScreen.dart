@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -24,6 +28,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _documentMissing = false;
+  bool _isUploadingImage = false;
+
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _pickedImage;
+  String? _profileImageUrl;
 
   @override
   void initState() {
@@ -81,6 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _designationController.text = (data["designation"] ?? "").toString();
       _companyAddressController.text =
           (data["company_address"] ?? "").toString();
+      _profileImageUrl = (data["profileImageUrl"] ?? "").toString();
 
       if (!mounted) return;
       setState(() {
@@ -130,6 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         "company_name": _companyNameController.text.trim(),
         "designation": _designationController.text.trim(),
         "company_address": _companyAddressController.text.trim(),
+        "profileImageUrl": _profileImageUrl,
         "lastUpdated": FieldValue.serverTimestamp(),
       });
 
@@ -156,6 +167,90 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _isSaving = false;
         });
       }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (pickedFile != null) {
+      setState(() => _pickedImage = File(pickedFile.path));
+      await _uploadProfileImage();
+    }
+  }
+
+  Future<String?> _uploadImageToCloudinary(File imageFile) async {
+    const String cloudName = 'dqfpu6bhv';
+    const String uploadPreset = 'profile_images';
+
+    final uri = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
+
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = uploadPreset
+      ..files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
+
+    final response = await request.send();
+    final responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final Map<String, dynamic> jsonMap =
+          jsonDecode(responseBody) as Map<String, dynamic>;
+      return jsonMap['secure_url'] as String?;
+    } else {
+      throw Exception('Cloudinary upload failed: $responseBody');
+    }
+  }
+
+  Future<void> _uploadProfileImage() async {
+    if (_pickedImage == null) return;
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
+      final imageUrl = await _uploadImageToCloudinary(_pickedImage!);
+
+      if (imageUrl == null || imageUrl.isEmpty) {
+        throw Exception('No image URL returned from Cloudinary');
+      }
+
+      await FirebaseFirestore.instance
+          .collection('user')
+          .doc(user.uid)
+          .update({
+        'profileImageUrl': imageUrl,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _profileImageUrl = imageUrl;
+        _isUploadingImage = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile image uploaded successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -201,14 +296,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        const CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Color(0xFFE3EEF9),
-                          child: Icon(
-                            Icons.person,
-                            size: 40,
-                            color: Color(0xFF5F9ED6),
-                          ),
+                        Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: _isUploadingImage ? null : _pickImage,
+                              child: CircleAvatar(
+                                radius: 40,
+                                backgroundColor: const Color(0xFFE3EEF9),
+                                backgroundImage: _pickedImage != null
+                                    ? FileImage(_pickedImage!)
+                                    : (_profileImageUrl != null &&
+                                            _profileImageUrl!.isNotEmpty
+                                        ? NetworkImage(_profileImageUrl!)
+                                        : null),
+                                child: (_pickedImage == null &&
+                                        (_profileImageUrl == null ||
+                                            _profileImageUrl!.isEmpty))
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 40,
+                                        color: Color(0xFF5F9ED6),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            if (_isUploadingImage)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundColor: const Color(0xFF5F9ED6),
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.camera_alt,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed:
+                                      _isUploadingImage ? null : _pickImage,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
                         _buildField(

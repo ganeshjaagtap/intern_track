@@ -57,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final name = (data['fullName'] ?? 'Student').toString();
           final dept = (data['dept'] ?? 'Not Assigned').toString();
           final enrollment = (data['enrollmentNo'] ?? 'Not Assigned').toString();
+          final imageUrl = (data['profileImageUrl'] ?? '').toString();
           final facultyId = (data['facultyId'] ?? '').toString().trim();
           final facultyName = (data['collegeMentor'] ?? data['facultyMentorName'] ?? '')
               .toString()
@@ -77,8 +78,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           radius: 52,
                           backgroundColor: const Color(0xFF6BB6FF),
                           backgroundImage:
-                              profileImage != null ? FileImage(profileImage!) : null,
-                          child: profileImage == null
+                              profileImage != null
+                                  ? FileImage(profileImage!)
+                                  : (imageUrl.isNotEmpty
+                                      ? NetworkImage(imageUrl)
+                                      : null),
+                          child: profileImage == null && imageUrl.isEmpty
                               ? const Icon(
                                   Icons.person,
                                   size: 50,
