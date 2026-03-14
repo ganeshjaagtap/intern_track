@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_2/features/chat/chat_list_screen.dart';
 import 'package:flutter_application_2/features/company_mentor/dashboard/MentorAttendanceScreen.dart';
 
 import '../dashboard/CompanyMentorDashboardScreen.dart';
 import '../interns_screen/CompanyMentorInternsScreen.dart';
 import '../settings/CompanyMentorSettingsScreen.dart';
-import '../chat/CompanyMentorChat.dart';
 import '../attendance/CompanyMentorAttendanceScreen.dart';
 
 class CompanyMentorBottomBar extends StatelessWidget {
@@ -113,7 +113,7 @@ class CompanyMentorBottomBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const CompanyMentorChat(),
+                    builder: (_) => const ChatListScreen(),
                   ),
                 );
 

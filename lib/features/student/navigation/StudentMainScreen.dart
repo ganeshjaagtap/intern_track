@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_2/features/chat/chat_list_screen.dart';
 
-import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
+//import 'package:flutter_application_2/features/chat/screens/chat_selection_screen.dart';
 
 import '../dashboard/StudentDashboardScreen.dart';
 import '../attendance/AttendanceScreen.dart';
@@ -182,7 +183,7 @@ class _CustomBottomNav extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ChatSelectionScreen(),
+                    builder: (_) => const ChatListScreen(),
                   ),
                 );
               },
