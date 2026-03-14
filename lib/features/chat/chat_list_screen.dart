@@ -275,55 +275,93 @@ class _FacultyChats extends StatelessWidget {
           facultyUid: currentUid,
           studentDocs: studentDocs,
         );
+        final mentorRefs = studentDocs
+            .map((doc) => (doc.data()['companyMentorId'] ?? '').toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _PeopleSection(
-              title: 'Students',
-              emptyMessage: 'No students are linked to your faculty ID yet.',
-              children: studentDocs
-                  .map(
-                    (studentDoc) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _DirectChatTile(
-                        currentUid: currentUid,
-                        currentUserName: currentUserName,
-                        otherUid: studentDoc.id,
-                        title: _displayName(studentDoc.data(), fallback: 'Student'),
-                        subtitle: 'Individual student chat',
-                        imageUrl: (studentDoc.data()['profileImageUrl'] ?? '').toString(),
-                        icon: Icons.person_rounded,
-                        accentColor: const Color(0xFF2563EB),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            _PeopleSection(
-              title: 'Academic Channels',
-              emptyMessage: 'No academic channels are linked to your assigned groups yet.',
-              children: channels
-                  .map(
-                    (channel) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _GroupChatTile(
-                        currentUid: currentUid,
-                        chatId: channel.chatId,
-                        infoId: channel.groupId,
-                        title: 'Academic Channel',
-                        subtitle: channel.groupName,
-                        currentUserName: currentUserName,
-                        emptyMessage: 'No channel available.',
-                        participantIds: channel.participantIds,
-                        accentColor: const Color(0xFF2563EB),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+        return StreamBuilder<List<_ResolvedUser>>(
+          stream: _resolveUsersByFieldStream(
+            refValues: mentorRefs,
+            role: 'mentor',
+            lookupField: 'mentorId',
+          ),
+          builder: (context, mentorSnapshot) {
+            final mentorUsers = mentorSnapshot.data ?? const <_ResolvedUser>[];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PeopleSection(
+                  title: 'Students',
+                  emptyMessage: 'No students are linked to your faculty ID yet.',
+                  children: studentDocs
+                      .map(
+                        (studentDoc) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _DirectChatTile(
+                            currentUid: currentUid,
+                            currentUserName: currentUserName,
+                            otherUid: studentDoc.id,
+                            title: _displayName(studentDoc.data(), fallback: 'Student'),
+                            subtitle: 'Individual student chat',
+                            imageUrl: (studentDoc.data()['profileImageUrl'] ?? '').toString(),
+                            icon: Icons.person_rounded,
+                            accentColor: const Color(0xFF2563EB),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                _PeopleSection(
+                  title: 'Company Mentors',
+                  emptyMessage: 'No company mentors are linked to your students yet.',
+                  children: mentorUsers
+                      .map(
+                        (mentor) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _DirectChatTile(
+                            currentUid: currentUid,
+                            currentUserName: currentUserName,
+                            otherUid: mentor.uid,
+                            title: _displayName(mentor.data, fallback: 'Company Mentor'),
+                            subtitle: 'Mentor chat',
+                            imageUrl: (mentor.data['profileImageUrl'] ?? '').toString(),
+                            icon: Icons.business_center_rounded,
+                            accentColor: const Color(0xFF0F766E),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                _PeopleSection(
+                  title: 'Academic Channels',
+                  emptyMessage: 'No academic channels are linked to your assigned groups yet.',
+                  children: channels
+                      .map(
+                        (channel) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _GroupChatTile(
+                            currentUid: currentUid,
+                            chatId: channel.chatId,
+                            infoId: channel.groupId,
+                            title: 'Academic Channel',
+                            subtitle: channel.groupName,
+                            currentUserName: currentUserName,
+                            emptyMessage: 'No channel available.',
+                            participantIds: channel.participantIds,
+                            accentColor: const Color(0xFF2563EB),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -370,55 +408,93 @@ class _MentorChats extends StatelessWidget {
           mentorUid: currentUid,
           studentDocs: studentDocs,
         );
+        final facultyRefs = studentDocs
+            .map((doc) => (doc.data()['facultyId'] ?? '').toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _PeopleSection(
-              title: 'Students',
-              emptyMessage: 'No students are linked to your mentor ID yet.',
-              children: studentDocs
-                  .map(
-                    (studentDoc) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _DirectChatTile(
-                        currentUid: currentUid,
-                        currentUserName: currentUserName,
-                        otherUid: studentDoc.id,
-                        title: _displayName(studentDoc.data(), fallback: 'Student'),
-                        subtitle: 'Individual student chat',
-                        imageUrl: (studentDoc.data()['profileImageUrl'] ?? '').toString(),
-                        icon: Icons.person_rounded,
-                        accentColor: const Color(0xFF0F766E),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 20),
-            _PeopleSection(
-              title: 'Industry Channels',
-              emptyMessage: 'No industry channels are linked to your assigned groups yet.',
-              children: channels
-                  .map(
-                    (channel) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _GroupChatTile(
-                        currentUid: currentUid,
-                        chatId: channel.chatId,
-                        infoId: channel.groupId,
-                        title: 'Industry Channel',
-                        subtitle: channel.groupName,
-                        currentUserName: currentUserName,
-                        emptyMessage: 'No channel available.',
-                        participantIds: channel.participantIds,
-                        accentColor: const Color(0xFF0F766E),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+        return StreamBuilder<List<_ResolvedUser>>(
+          stream: _resolveUsersByFieldStream(
+            refValues: facultyRefs,
+            role: 'faculty',
+            lookupField: 'facultyId',
+          ),
+          builder: (context, facultySnapshot) {
+            final facultyUsers = facultySnapshot.data ?? const <_ResolvedUser>[];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PeopleSection(
+                  title: 'Students',
+                  emptyMessage: 'No students are linked to your mentor ID yet.',
+                  children: studentDocs
+                      .map(
+                        (studentDoc) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _DirectChatTile(
+                            currentUid: currentUid,
+                            currentUserName: currentUserName,
+                            otherUid: studentDoc.id,
+                            title: _displayName(studentDoc.data(), fallback: 'Student'),
+                            subtitle: 'Individual student chat',
+                            imageUrl: (studentDoc.data()['profileImageUrl'] ?? '').toString(),
+                            icon: Icons.person_rounded,
+                            accentColor: const Color(0xFF0F766E),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                _PeopleSection(
+                  title: 'Faculty Mentors',
+                  emptyMessage: 'No faculty mentors are linked to your students yet.',
+                  children: facultyUsers
+                      .map(
+                        (faculty) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _DirectChatTile(
+                            currentUid: currentUid,
+                            currentUserName: currentUserName,
+                            otherUid: faculty.uid,
+                            title: _displayName(faculty.data, fallback: 'Faculty Mentor'),
+                            subtitle: 'Mentor chat',
+                            imageUrl: (faculty.data['profileImageUrl'] ?? '').toString(),
+                            icon: Icons.school_rounded,
+                            accentColor: const Color(0xFF2563EB),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                _PeopleSection(
+                  title: 'Industry Channels',
+                  emptyMessage: 'No industry channels are linked to your assigned groups yet.',
+                  children: channels
+                      .map(
+                        (channel) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _GroupChatTile(
+                            currentUid: currentUid,
+                            chatId: channel.chatId,
+                            infoId: channel.groupId,
+                            title: 'Industry Channel',
+                            subtitle: channel.groupName,
+                            currentUserName: currentUserName,
+                            emptyMessage: 'No channel available.',
+                            participantIds: channel.participantIds,
+                            accentColor: const Color(0xFF0F766E),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -1194,6 +1270,55 @@ Stream<_ResolvedUser?> _resolveUserStream({
       yield null;
     }
   }
+}
+
+Stream<List<_ResolvedUser>> _resolveUsersByFieldStream({
+  required List<String> refValues,
+  required String role,
+  required String lookupField,
+}) async* {
+  final cleanedValues = refValues
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet()
+      .toList();
+
+  if (cleanedValues.isEmpty) {
+    yield const <_ResolvedUser>[];
+    return;
+  }
+
+  final resolvedUsers = <String, _ResolvedUser>{};
+
+  for (final refValue in cleanedValues) {
+    final directDoc = await FirebaseFirestore.instance.collection('user').doc(refValue).get();
+    if (directDoc.exists) {
+      final data = directDoc.data() ?? <String, dynamic>{};
+      final docRole = (data['role'] ?? '').toString().trim().toLowerCase();
+      if (docRole.isEmpty || docRole == role) {
+        resolvedUsers[directDoc.id] = _ResolvedUser(uid: directDoc.id, data: data);
+        continue;
+      }
+    }
+
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('user')
+        .where('role', isEqualTo: role)
+        .where(lookupField, isEqualTo: refValue)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final doc = querySnapshot.docs.first;
+      resolvedUsers[doc.id] = _ResolvedUser(uid: doc.id, data: doc.data());
+    }
+  }
+
+  final users = resolvedUsers.values.toList()
+    ..sort((a, b) => _displayName(a.data, fallback: a.uid)
+        .toLowerCase()
+        .compareTo(_displayName(b.data, fallback: b.uid).toLowerCase()));
+  yield users;
 }
 
 String _academicChatId(String facultyId, String groupId) {

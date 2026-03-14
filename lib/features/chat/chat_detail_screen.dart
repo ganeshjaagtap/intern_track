@@ -48,6 +48,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
     _markChatAsRead();
+    _markAllIncomingMessagesAsRead();
   }
 
   Future<void> _sendMessage() async {
@@ -539,11 +540,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       if (!mounted) {
         return;
       }
-
-      final messagesRef = FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.chatId)
-          .collection('messages');
       final batch = FirebaseFirestore.instance.batch();
       var hasUpdates = false;
 
@@ -565,7 +561,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
 
         if (updates.isNotEmpty) {
-          batch.update(messagesRef.doc(doc.id), updates);
+          batch.update(doc.reference, updates);
           hasUpdates = true;
         }
       }
@@ -855,6 +851,48 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
       'unreadCounts.$currentUid': 0,
     }, SetOptions(merge: true));
+  }
+
+  Future<void> _markAllIncomingMessagesAsRead() async {
+    try {
+      final messagesRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages');
+
+      final snapshot = await messagesRef.get();
+      final batch = FirebaseFirestore.instance.batch();
+      var hasUpdates = false;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if ((data['senderId'] ?? '') == currentUid) {
+          continue;
+        }
+
+        final deliveredTo = List<String>.from(data['deliveredTo'] ?? const []);
+        final readBy = List<String>.from(data['readBy'] ?? const []);
+        final updates = <String, dynamic>{};
+
+        if (!deliveredTo.contains(currentUid)) {
+          updates['deliveredTo'] = FieldValue.arrayUnion([currentUid]);
+        }
+        if (!readBy.contains(currentUid)) {
+          updates['readBy'] = FieldValue.arrayUnion([currentUid]);
+        }
+
+        if (updates.isNotEmpty) {
+          batch.update(doc.reference, updates);
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    } catch (_) {
+      // Avoid breaking chat open flow if receipts update fails.
+    }
   }
 
   Future<void> _deleteChat() async {
