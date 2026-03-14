@@ -6,6 +6,7 @@ import 'package:flutter_application_2/features/student/navigation/StudentMainScr
 import 'package:flutter_application_2/features/HOD/layout/hod_main_layout.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
 import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
+import 'package:flutter_application_2/features/principal/dashboard/principal_dashboard_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_application_2/features/student/auth/CreateAccountScreen.dart';
 import 'package:flutter_application_2/features/student/auth/PendingApprovalScreen.dart'; 
@@ -271,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen>
       _routeByRole(role, email);
       return;
     } on FirebaseAuthException catch (e) {
-      if (mounted) _showError(e.message ?? "Login failed");
+      if (mounted) _showError("${e.code}: ${e.message ?? "Login failed"}");
     } catch (e) {
       print("🚨 LOGIN ERROR: $e");
       if (mounted) _showError("Unexpected error: $e");
@@ -288,6 +289,7 @@ class _LoginScreenState extends State<LoginScreen>
     else if (role == 'mentor') targetScreen = const CompanyMentorDashboardScreen();
     else if (role == 'faculty') targetScreen = const FacultyDashboardScreen();
     else if (role == 'student') targetScreen = const StudentMainScreen();
+    else if (role == 'principal') targetScreen = const PrincipalDashboardScreen();
     else {
       _showError("Unknown role: $role");
       if (mounted) setState(() => isLoading = false);

@@ -6,6 +6,7 @@ import 'package:flutter_application_2/features/student/navigation/StudentMainScr
 import 'package:flutter_application_2/features/HOD/layout/hod_main_layout.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
 import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
+import 'package:flutter_application_2/features/principal/dashboard/principal_dashboard_screen.dart';
 import 'package:flutter_application_2/core/utils/mentor_emails.dart';
 import 'firebase_options.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
@@ -55,18 +56,23 @@ class MyApp extends StatelessWidget {
 
               if (roleSnapshot.hasData && roleSnapshot.data!.exists) {
                 final data = roleSnapshot.data!.data() as Map<String, dynamic>;
-                final String role = (data['role'] ?? 'student').toString().toLowerCase();
-                final String email = (user.email ?? '').toLowerCase();
+                final String role =
+                    (data['role'] ?? 'student').toString().trim().toLowerCase();
+                final String email = (user.email ?? '').trim().toLowerCase();
 
-                if (role == 'faculty') {
-                  return const FacultyDashboardScreen();
-                } else if (mentorEmails.contains(email) || role == 'hod') {
+                if (mentorEmails.contains(email) || role == 'hod') {
                   return const HodMainLayout();
                 } else if (role == 'mentor') {
                   return const CompanyMentorDashboardScreen();
+                } else if (role == 'faculty') {
+                  return const FacultyDashboardScreen();
+                } else if (role == 'principal') {
+                  return const PrincipalDashboardScreen();
+                } else if (role == 'student') {
+                  return const StudentMainScreen();
                 }
 
-                return const StudentMainScreen();
+                return const LoginScreen();
               }
 
               // 4. Fallback: If document doesn't exist, log them out and show login
