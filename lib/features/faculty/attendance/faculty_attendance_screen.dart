@@ -17,18 +17,8 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   bool _isLoadingFaculty = true;
 
   final List<String> _monthNames = const [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
   ];
 
   @override
@@ -37,41 +27,60 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
     _loadFacultyAssignmentId();
   }
 
+  // --- Helper to check if a date is today ---
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
   Future<void> _loadFacultyAssignmentId() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        throw Exception("Faculty not logged in");
-      }
+      if (currentUser == null) throw Exception("Faculty not logged in");
 
       final doc = await _firestore.collection("user").doc(currentUser.uid).get();
       final data = doc.data() as Map<String, dynamic>? ?? {};
 
       if (!mounted) return;
       setState(() {
-        _facultyAssignmentId =
-            (data["facultyId"] ?? data["uid"] ?? currentUser.uid).toString();
+        _facultyAssignmentId = (data["facultyId"] ?? data["uid"] ?? currentUser.uid).toString();
         _isLoadingFaculty = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isLoadingFaculty = false;
-      });
+      setState(() => _isLoadingFaculty = false);
+    }
+  }
+
+  // --- Function to Update Attendance in Firestore ---
+  Future<void> _updateAttendanceStatus(String enrollmentNo, String newStatus, DateTime date) async {
+    if (!_isToday(date)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to load faculty data: $e"),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text("Cannot modify past attendance."), backgroundColor: Colors.orange),
       );
+      return;
+    }
+
+    final String recordDate = _formatDateKey(date);
+    try {
+      await _firestore
+          .collection("attendance")
+          .doc(enrollmentNo)
+          .collection("records")
+          .doc(recordDate)
+          .set({
+        "status": newStatus,
+        "lastUpdated": FieldValue.serverTimestamp(),
+        "markedBy": _facultyAssignmentId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("Error updating: $e");
     }
   }
 
   Future<List<Map<String, dynamic>>> _fetchAttendanceForDate(DateTime date) async {
     final facultyId = _facultyAssignmentId;
-    if (facultyId == null || facultyId.isEmpty) {
-      return [];
-    }
+    if (facultyId == null || facultyId.isEmpty) return [];
 
     final studentSnapshot = await _firestore
         .collection("user")
@@ -80,9 +89,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
         .get();
 
     final students = studentSnapshot.docs;
-    if (students.isEmpty) {
-      return [];
-    }
+    if (students.isEmpty) return [];
 
     final String recordDate = _formatDateKey(date);
     final List<Map<String, dynamic>> results = [];
@@ -101,8 +108,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
             .get();
 
         if (attendanceDoc.exists) {
-          final attendanceData = attendanceDoc.data() as Map<String, dynamic>? ?? {};
-          status = (attendanceData["status"] ?? "not_marked").toString();
+          status = (attendanceDoc.data()?["status"] ?? "not_marked").toString();
         }
       }
 
@@ -112,11 +118,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
         "status": status,
       });
     }
-
-    results.sort(
-      (a, b) => (a["studentName"] as String).compareTo(b["studentName"] as String),
-    );
-
+    results.sort((a, b) => (a["studentName"] as String).compareTo(b["studentName"] as String));
     return results;
   }
 
@@ -125,243 +127,156 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   }
 
   Future<void> _showAttendanceSheet(DateTime date) async {
+    final bool canEdit = _isToday(date);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.65,
-          minChildSize: 0.45,
-          maxChildSize: 0.9,
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
           expand: false,
           builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _fetchAttendanceForDate(date),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+            return StatefulBuilder(builder: (context, setModalState) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _fetchAttendanceForDate(date),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final rows = snapshot.data ?? [];
+                    if (rows.isEmpty) return const Center(child: Text("No students found."));
 
-                  if (snapshot.hasError) {
-                    return _sheetMessage(
-                      scrollController: scrollController,
-                      title: "Unable to load attendance",
-                      subtitle: "Please try again for this date.",
-                    );
-                  }
-
-                  final rows = snapshot.data ?? [];
-                  if (rows.isEmpty) {
-                    return _sheetMessage(
-                      scrollController: scrollController,
-                      title: "No students assigned",
-                      subtitle: "There are no students linked to your faculty ID.",
-                    );
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 48,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(999),
+                    return Column(
+                      children: [
+                        _buildSheetHeader(date, canEdit),
+                        Expanded(
+                          child: ListView.separated(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: rows.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final row = rows[index];
+                              return _buildAttendanceListItem(row, date, canEdit, setModalState);
+                            },
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Daily Attendance",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "${date.day} ${_monthNames[date.month - 1]} ${date.year}",
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView.separated(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          itemCount: rows.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final row = rows[index];
-                            final status = (row["status"] ?? "not_marked").toString();
-
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF7F9FC),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor:
-                                        const Color(0xFF6BB6FF).withOpacity(0.15),
-                                    child: Text(
-                                      _initials((row["studentName"] ?? "S").toString()),
-                                      style: const TextStyle(
-                                        color: Color(0xFF1976D2),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          (row["studentName"] ?? "Student").toString(),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          (row["enrollmentNo"] ?? "").toString().isEmpty
-                                              ? "Enrollment not available"
-                                              : "Enrollment: ${row["enrollmentNo"]}",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  _statusChip(status),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            );
+                      ],
+                    );
+                  },
+                ),
+              );
+            });
           },
         );
       },
     );
   }
 
-  Widget _sheetMessage({
-    required ScrollController scrollController,
-    required String title,
-    required String subtitle,
-  }) {
-    return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.all(24),
-      children: [
-        const SizedBox(height: 24),
-        Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
-        const SizedBox(height: 16),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
-      ],
+  Widget _buildSheetHeader(DateTime date, bool canEdit) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(canEdit ? "Update Attendance" : "View Attendance",
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text("${date.day} ${_monthNames[date.month - 1]} ${date.year}"),
+            ],
+          ),
+          if (!canEdit)
+            const Chip(
+              label: Text("Read Only", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+              backgroundColor: Color(0xFFFFF3E0),
+            )
+        ],
+      ),
     );
   }
 
-  String _initials(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return "?";
-    return trimmed[0].toUpperCase();
+  Widget _buildAttendanceListItem(Map<String, dynamic> row, DateTime date, bool canEdit, StateSetter setModalState) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(row["studentName"], style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text("ID: ${row["enrollmentNo"]}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+          if (canEdit)
+            _buildEditableStatus(row, date, setModalState)
+          else
+            _statusChip(row["status"]),
+        ],
+      ),
+    );
   }
 
-  Widget _statusChip(String status) {
-    late final String label;
-    late final Color textColor;
-    late final Color bgColor;
+  Widget _buildEditableStatus(Map<String, dynamic> row, DateTime date, StateSetter setModalState) {
+    return PopupMenuButton<String>(
+      initialValue: row["status"],
+      onSelected: (String value) async {
+        await _updateAttendanceStatus(row["enrollmentNo"], value, date);
+        setModalState(() => row["status"] = value); // UI update inside modal
+        setState(() {}); // UI update on calendar screen
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: "present", child: Text("Present", style: TextStyle(color: Colors.green))),
+        const PopupMenuItem(value: "absent", child: Text("Absent", style: TextStyle(color: Colors.red))),
+        const PopupMenuItem(value: "leave", child: Text("Leave", style: TextStyle(color: Colors.orange))),
+      ],
+      child: _statusChip(row["status"]),
+    );
+  }
 
-    switch (status.toLowerCase()) {
-      case "present":
-        label = "Present";
-        textColor = Colors.green.shade700;
-        bgColor = Colors.green.shade50;
-        break;
-      case "absent":
-        label = "Absent";
-        textColor = Colors.red.shade700;
-        bgColor = Colors.red.shade50;
-        break;
-      case "leave":
-        label = "Leave";
-        textColor = Colors.orange.shade800;
-        bgColor = Colors.orange.shade50;
-        break;
-      default:
-        label = "Not Marked";
-        textColor = Colors.grey.shade700;
-        bgColor = Colors.grey.shade200;
-    }
+  // --- Reusable Status Chip UI ---
+  Widget _statusChip(String status) {
+    Color color = Colors.grey;
+    String label = "Not Marked";
+
+    if (status == "present") { color = Colors.green; label = "Present"; }
+    else if (status == "absent") { color = Colors.red; label = "Absent"; }
+    else if (status == "leave") { color = Colors.orange; label = "Leave"; }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final int daysInMonth =
-        DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
+    final int daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F2),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF6EA8DC),
-        title: const Text(
-          "ATTENDANCE",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text("ATTENDANCE", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
       body: _isLoadingFaculty
           ? const Center(child: CircularProgressIndicator())
@@ -382,46 +297,34 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
                 Expanded(
                   child: GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 7, crossAxisSpacing: 8, mainAxisSpacing: 8,
                     ),
                     itemCount: daysInMonth,
                     itemBuilder: (context, index) {
                       final int day = index + 1;
-                      final DateTime currentDate = DateTime(
-                        _selectedDate.year,
-                        _selectedDate.month,
-                        day,
-                      );
-
+                      final DateTime currentDate = DateTime(_selectedDate.year, _selectedDate.month, day);
                       final bool isSelected = _isSameDate(currentDate, _selectedDate);
+                      final bool isToday = _isToday(currentDate);
 
                       return GestureDetector(
                         onTap: () {
-                          setState(() {
-                            _selectedDate = currentDate;
-                          });
+                          setState(() => _selectedDate = currentDate);
                           _showAttendanceSheet(currentDate);
                         },
                         child: Container(
                           decoration: BoxDecoration(
                             color: isSelected ? const Color(0xFF6EA8DC) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 4),
-                            ],
+                            border: isToday ? Border.all(color: const Color(0xFF6EA8DC), width: 2) : null,
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
                           ),
                           child: Center(
-                            child: Text(
-                              day.toString(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? Colors.white : Colors.black87,
-                              ),
-                            ),
+                            child: Text(day.toString(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? Colors.white : Colors.black87,
+                                )),
                           ),
                         ),
                       );
@@ -433,32 +336,21 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
     );
   }
 
-  bool _isSameDate(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
+  // --- The rest of your dropdown and UI methods remain identical to maintain features ---
+  bool _isSameDate(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  String _initials(String name) => name.trim().isEmpty ? "?" : name.trim()[0].toUpperCase();
 
   Widget _monthDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: DropdownButton<int>(
         value: _selectedDate.month,
         isExpanded: true,
         underline: const SizedBox(),
-        items: List.generate(12, (index) {
-          return DropdownMenuItem(
-            value: index + 1,
-            child: Text(_monthNames[index]),
-          );
-        }),
+        items: List.generate(12, (index) => DropdownMenuItem(value: index + 1, child: Text(_monthNames[index]))),
         onChanged: (value) {
-          if (value == null) return;
-          setState(() {
-            _selectedDate = DateTime(_selectedDate.year, value, 1);
-          });
+          if (value != null) setState(() => _selectedDate = DateTime(_selectedDate.year, value, 1));
         },
       ),
     );
@@ -467,26 +359,17 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
   Widget _yearDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: DropdownButton<int>(
         value: _selectedDate.year,
         isExpanded: true,
         underline: const SizedBox(),
         items: List.generate(5, (index) {
           final year = DateTime.now().year - 2 + index;
-          return DropdownMenuItem(
-            value: year,
-            child: Text(year.toString()),
-          );
+          return DropdownMenuItem(value: year, child: Text(year.toString()));
         }),
         onChanged: (value) {
-          if (value == null) return;
-          setState(() {
-            _selectedDate = DateTime(value, _selectedDate.month, 1);
-          });
+          if (value != null) setState(() => _selectedDate = DateTime(value, _selectedDate.month, 1));
         },
       ),
     );
@@ -498,18 +381,7 @@ class _FacultyAttendanceScreenState extends State<FacultyAttendanceScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: days
-            .map(
-              (day) => SizedBox(
-                width: 30,
-                child: Text(
-                  day,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
-            .toList(),
+        children: days.map((day) => SizedBox(width: 30, child: Text(day, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)))).toList(),
       ),
     );
   }
