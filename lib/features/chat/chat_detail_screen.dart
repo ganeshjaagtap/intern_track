@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -46,6 +48,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
     _markChatAsRead();
+    _markAllIncomingMessagesAsRead();
   }
 
   Future<void> _sendMessage() async {
@@ -62,10 +65,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _sendChatMessage({
     String text = '',
     String imageUrl = '',
+    String imageBase64 = '',
     required String lastMessage,
   }) async {
     final hasText = text.trim().isNotEmpty;
-    final hasImage = imageUrl.trim().isNotEmpty;
+    final hasImage = imageUrl.trim().isNotEmpty || imageBase64.trim().isNotEmpty;
     if (!hasText && !hasImage) {
       return;
     }
@@ -77,7 +81,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       'senderName': widget.currentUserName,
       'text': text,
       'imageUrl': imageUrl,
+      'imageBase64': imageBase64,
       'type': hasImage ? 'image' : 'text',
+      'deliveredTo': [currentUid],
+      'readBy': [currentUid],
       'timestamp': FieldValue.serverTimestamp(),
     });
 
@@ -108,7 +115,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     try {
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 80,
+        imageQuality: 40,
+        maxWidth: 960,
+        maxHeight: 960,
       );
 
       if (pickedFile == null) {
@@ -119,35 +128,47 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         _isUploadingImage = true;
       });
 
-      final extension = pickedFile.path.contains('.')
-          ? pickedFile.path.split('.').last
-          : 'jpg';
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_$currentUid.$extension';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('chat_images')
-          .child(widget.chatId)
-          .child(fileName);
+      final bytes = await pickedFile.readAsBytes();
+      String imageUrl = '';
+      String imageBase64 = '';
 
-      if (kIsWeb) {
-        final bytes = await pickedFile.readAsBytes();
-        await storageRef.putData(
-          bytes,
-          SettableMetadata(contentType: 'image/$extension'),
-        );
-      } else {
-        final file = File(pickedFile.path);
-        await storageRef.putFile(
-          file,
-          SettableMetadata(contentType: 'image/$extension'),
-        );
+      try {
+        final extension = pickedFile.path.contains('.')
+            ? pickedFile.path.split('.').last.toLowerCase()
+            : 'jpg';
+        final contentType = extension == 'png' ? 'image/png' : 'image/jpeg';
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_$currentUid.$extension';
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('chat_images')
+            .child(widget.chatId)
+            .child(fileName);
+
+        final uploadTask = kIsWeb
+            ? storageRef.putData(
+                bytes,
+                SettableMetadata(contentType: contentType),
+              )
+            : storageRef.putFile(
+                File(pickedFile.path),
+                SettableMetadata(contentType: contentType),
+              );
+
+        final snapshot = await uploadTask;
+        imageUrl = await snapshot.ref.getDownloadURL();
+      } catch (_) {
+        imageBase64 = base64Encode(bytes);
+        if (imageBase64.length > 800000) {
+          throw Exception(
+            'Image upload failed and the compressed image is too large for Firestore fallback.',
+          );
+        }
       }
 
-      final downloadUrl = await _getDownloadUrlWithRetry(storageRef);
-
       await _sendChatMessage(
-        imageUrl: downloadUrl,
+        imageUrl: imageUrl,
+        imageBase64: imageBase64,
         lastMessage: '[Photo]',
       );
     } catch (e) {
@@ -270,6 +291,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   final deletedFor = List<String>.from(data['deletedFor'] ?? const []);
                   return !deletedFor.contains(currentUid);
                 }).toList();
+                _syncMessageReceipts(docs);
 
                 return ListView.builder(
                   reverse: true,
@@ -303,10 +325,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           imageUrl: isDeleted
                               ? ''
                               : (data['imageUrl'] ?? '').toString(),
+                          imageBase64: isDeleted
+                              ? ''
+                              : (data['imageBase64'] ?? '').toString(),
                           senderName: (data['senderName'] ?? '').toString(),
                           isMe: isMe,
                           ts: data['timestamp'],
                           isDeleted: isDeleted,
+                          deliveredTo: List<String>.from(data['deliveredTo'] ?? const []),
+                          readBy: List<String>.from(data['readBy'] ?? const []),
                         ),
                       ),
                     );
@@ -324,13 +351,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget _buildMessageBubble({
     required String text,
     required String imageUrl,
+    required String imageBase64,
     required String senderName,
     required bool isMe,
     required dynamic ts,
     required bool isDeleted,
+    required List<String> deliveredTo,
+    required List<String> readBy,
   }) {
     final timeLabel = ts is Timestamp ? DateFormat('hh:mm a').format(ts.toDate()) : '';
-    final hasImage = imageUrl.trim().isNotEmpty && !isDeleted;
+    final imageBytes = imageBase64.trim().isEmpty || isDeleted
+        ? null
+        : _decodeBase64Image(imageBase64);
+    final hasImage = imageUrl.trim().isNotEmpty || imageBytes != null;
+    final receiptIcon = _buildReceiptIcon(
+      isMe: isMe,
+      deliveredTo: deliveredTo,
+      readBy: readBy,
+    );
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -375,42 +413,46 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ],
             if (hasImage) ...[
               GestureDetector(
-                onTap: () => _openImagePreview(imageUrl),
+                onTap: () => _openImagePreview(
+                  imageUrl: imageUrl,
+                  imageBytes: imageBytes,
+                ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    imageUrl,
-                    width: 220,
-                    height: 220,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 220,
-                        height: 220,
-                        color: Colors.black12,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: isMe ? Colors.white70 : Colors.grey,
-                          size: 42,
+                  child: imageUrl.trim().isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          width: 220,
+                          height: 220,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            if (imageBytes != null) {
+                              return Image.memory(
+                                imageBytes,
+                                width: 220,
+                                height: 220,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return Container(
+                              width: 220,
+                              height: 220,
+                              color: Colors.black12,
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: isMe ? Colors.white70 : Colors.grey,
+                                size: 42,
+                              ),
+                            );
+                          },
+                        )
+                      : Image.memory(
+                          imageBytes!,
+                          width: 220,
+                          height: 220,
+                          fit: BoxFit.cover,
                         ),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
-                      return Container(
-                        width: 220,
-                        height: 220,
-                        color: Colors.black12,
-                        alignment: Alignment.center,
-                        child: CircularProgressIndicator(
-                          color: isMe ? Colors.white : const Color(0xFF2563EB),
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ),
               if (text.trim().isNotEmpty) const SizedBox(height: 8),
@@ -431,13 +473,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               const SizedBox(height: 6),
               Align(
                 alignment: Alignment.bottomRight,
-                child: Text(
-                  timeLabel,
-                  style: TextStyle(
-                    color: isMe ? Colors.white70 : const Color(0xFF64748B),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timeLabel,
+                      style: TextStyle(
+                        color: isMe ? Colors.white70 : const Color(0xFF64748B),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (receiptIcon != null) ...[
+                      const SizedBox(width: 4),
+                      receiptIcon,
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -445,6 +496,80 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
       ),
     );
+  }
+
+  Widget? _buildReceiptIcon({
+    required bool isMe,
+    required List<String> deliveredTo,
+    required List<String> readBy,
+  }) {
+    if (!isMe) {
+      return null;
+    }
+
+    final otherParticipantIds = widget.participantIds
+        .where((id) => id.trim().isNotEmpty && id != currentUid)
+        .toSet();
+
+    if (otherParticipantIds.isEmpty) {
+      return Icon(Icons.done_rounded, size: 15, color: Colors.white70);
+    }
+
+    final deliveredSet = deliveredTo.toSet();
+    final readSet = readBy.toSet();
+    final deliveredAll = otherParticipantIds.every(deliveredSet.contains);
+    final readAll = otherParticipantIds.every(readSet.contains);
+
+    if (readAll) {
+      return const Icon(
+        Icons.done_all_rounded,
+        size: 16,
+        color: Color(0xFFA7F3D0),
+      );
+    }
+
+    if (deliveredAll) {
+      return Icon(Icons.done_all_rounded, size: 16, color: Colors.white70);
+    }
+
+    return Icon(Icons.done_rounded, size: 15, color: Colors.white70);
+  }
+
+  void _syncMessageReceipts(List<QueryDocumentSnapshot> docs) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      final batch = FirebaseFirestore.instance.batch();
+      var hasUpdates = false;
+
+      for (final doc in docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if ((data['senderId'] ?? '') == currentUid) {
+          continue;
+        }
+
+        final deliveredTo = List<String>.from(data['deliveredTo'] ?? const []);
+        final readBy = List<String>.from(data['readBy'] ?? const []);
+        final updates = <String, dynamic>{};
+
+        if (!deliveredTo.contains(currentUid)) {
+          updates['deliveredTo'] = FieldValue.arrayUnion([currentUid]);
+        }
+        if (!readBy.contains(currentUid)) {
+          updates['readBy'] = FieldValue.arrayUnion([currentUid]);
+        }
+
+        if (updates.isNotEmpty) {
+          batch.update(doc.reference, updates);
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    });
   }
 
   Widget _buildMessageInput() {
@@ -646,6 +771,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         batch.update(messagesRef.doc(messageId), {
           'text': '',
           'imageUrl': '',
+          'imageBase64': '',
           'deletedForEveryone': true,
           'deletedAt': FieldValue.serverTimestamp(),
         });
@@ -682,7 +808,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  void _openImagePreview(String imageUrl) {
+  void _openImagePreview({
+    required String imageUrl,
+    required Uint8List? imageBytes,
+  }) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -696,7 +825,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: InteractiveViewer(
               minScale: 0.8,
               maxScale: 4,
-              child: Image.network(imageUrl),
+              child: imageUrl.trim().isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      errorBuilder: (context, error, stackTrace) {
+                        if (imageBytes != null) {
+                          return Image.memory(imageBytes);
+                        }
+                        return const Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white,
+                          size: 56,
+                        );
+                      },
+                    )
+                  : Image.memory(imageBytes!),
             ),
           ),
         ),
@@ -704,27 +847,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Future<String> _getDownloadUrlWithRetry(Reference ref) async {
-    Object? lastError;
-
-    for (var attempt = 0; attempt < 5; attempt++) {
-      try {
-        if (attempt > 0) {
-          await Future.delayed(Duration(milliseconds: 400 * attempt));
-        }
-        return await ref.getDownloadURL();
-      } catch (e) {
-        lastError = e;
-      }
-    }
-
-    throw lastError ?? Exception('Unable to resolve image download URL.');
-  }
-
   Future<void> _markChatAsRead() async {
     await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).set({
       'unreadCounts.$currentUid': 0,
     }, SetOptions(merge: true));
+  }
+
+  Future<void> _markAllIncomingMessagesAsRead() async {
+    try {
+      final messagesRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages');
+
+      final snapshot = await messagesRef.get();
+      final batch = FirebaseFirestore.instance.batch();
+      var hasUpdates = false;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if ((data['senderId'] ?? '') == currentUid) {
+          continue;
+        }
+
+        final deliveredTo = List<String>.from(data['deliveredTo'] ?? const []);
+        final readBy = List<String>.from(data['readBy'] ?? const []);
+        final updates = <String, dynamic>{};
+
+        if (!deliveredTo.contains(currentUid)) {
+          updates['deliveredTo'] = FieldValue.arrayUnion([currentUid]);
+        }
+        if (!readBy.contains(currentUid)) {
+          updates['readBy'] = FieldValue.arrayUnion([currentUid]);
+        }
+
+        if (updates.isNotEmpty) {
+          batch.update(doc.reference, updates);
+          hasUpdates = true;
+        }
+      }
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    } catch (_) {
+      // Avoid breaking chat open flow if receipts update fails.
+    }
   }
 
   Future<void> _deleteChat() async {
@@ -783,6 +951,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         SnackBar(content: Text('Failed to delete chat: $e')),
       );
     }
+  }
+}
+
+Uint8List? _decodeBase64Image(String value) {
+  try {
+    return base64Decode(value);
+  } catch (_) {
+    return null;
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ChatProfileScreen extends StatelessWidget {
@@ -28,66 +29,209 @@ class ChatProfileScreen extends StatelessWidget {
 
           final data = snapshot.data!.data() ?? <String, dynamic>{};
           final name = _displayName(data, fallback: 'User');
-          final role = _roleLabel((data['role'] ?? '').toString());
+          final rawRole = (data['role'] ?? '').toString().trim().toLowerCase();
+          final role = _roleLabel(rawRole);
           final imageUrl = (data['profileImageUrl'] ?? '').toString();
+          final facultyId = (data['facultyId'] ?? '').toString().trim();
+          final mentorId = (data['mentorId'] ?? '').toString().trim();
 
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              const SizedBox(height: 8),
-              Center(
-                child: CircleAvatar(
-                  radius: 52,
-                  backgroundColor: const Color(0xFFE2E8F0),
-                  backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                  child: imageUrl.isEmpty
-                      ? Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF16324F),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                role,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              _InfoCard(
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('user')
+                .doc(FirebaseAuth.instance.currentUser?.uid)
+                .snapshots(),
+            builder: (context, viewerSnapshot) {
+              final viewerRole = (viewerSnapshot.data?.data()?['role'] ?? '')
+                  .toString()
+                  .trim()
+                  .toLowerCase();
+              final canViewAssignedStudents =
+                  viewerRole == 'faculty' || viewerRole == 'mentor';
+
+              return ListView(
+                padding: const EdgeInsets.all(20),
                 children: [
-                  _InfoRow(label: 'Email', value: (data['email'] ?? '').toString()),
-                  _InfoRow(label: 'Faculty ID', value: (data['facultyId'] ?? '').toString()),
-                  _InfoRow(label: 'Mentor ID', value: (data['mentorId'] ?? '').toString()),
-                  _InfoRow(
-                    label: 'Enrollment No',
-                    value: (data['enrollmentNo'] ?? '').toString(),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: CircleAvatar(
+                      radius: 52,
+                      backgroundColor: const Color(0xFFE2E8F0),
+                      backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                      child: imageUrl.isEmpty
+                          ? Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF16324F),
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
-                  _InfoRow(label: 'Department', value: (data['dept'] ?? '').toString()),
-                  _InfoRow(
-                    label: 'Company',
-                    value: (data['company_name'] ?? data['company'] ?? '').toString(),
+                  const SizedBox(height: 16),
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                   ),
-                  _InfoRow(
-                    label: 'Assigned Group',
-                    value: (data['assignedGroupName'] ?? '').toString(),
+                  const SizedBox(height: 6),
+                  Text(
+                    role,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
                   ),
+                  const SizedBox(height: 24),
+                  _InfoCard(
+                    children: [
+                      _InfoRow(label: 'Email', value: (data['email'] ?? '').toString()),
+                      _InfoRow(label: 'Faculty ID', value: (data['facultyId'] ?? '').toString()),
+                      _InfoRow(label: 'Mentor ID', value: (data['mentorId'] ?? '').toString()),
+                      _InfoRow(
+                        label: 'Enrollment No',
+                        value: (data['enrollmentNo'] ?? '').toString(),
+                      ),
+                      _InfoRow(label: 'Department', value: (data['dept'] ?? '').toString()),
+                      _InfoRow(
+                        label: 'Company',
+                        value: (data['company_name'] ?? data['company'] ?? '').toString(),
+                      ),
+                      _InfoRow(
+                        label: 'Assigned Group',
+                        value: (data['assignedGroupName'] ?? '').toString(),
+                      ),
+                    ],
+                  ),
+                  if (canViewAssignedStudents && rawRole == 'faculty' && facultyId.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Assigned Students',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 12),
+                    _AssignedStudentsList(
+                      query: FirebaseFirestore.instance
+                          .collection('user')
+                          .where('role', isEqualTo: 'student')
+                          .where('facultyId', isEqualTo: facultyId),
+                    ),
+                  ],
+                  if (canViewAssignedStudents && rawRole == 'mentor' && mentorId.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Assigned Students',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 12),
+                    _AssignedStudentsList(
+                      query: FirebaseFirestore.instance
+                          .collection('user')
+                          .where('role', isEqualTo: 'student')
+                          .where('companyMentorId', isEqualTo: mentorId),
+                    ),
+                  ],
                 ],
-              ),
-            ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+}
+
+class _AssignedStudentsList extends StatelessWidget {
+  final Query<Map<String, dynamic>> query;
+
+  const _AssignedStudentsList({required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const _EmptyInfoCard(message: 'No students assigned.');
+        }
+
+        return Column(
+          children: docs
+              .map(
+                (doc) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _StudentInfoTile(data: doc.data()),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _StudentInfoTile extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _StudentInfoTile({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = _displayName(data, fallback: 'Student');
+    final imageUrl = (data['profileImageUrl'] ?? '').toString();
+    final enrollmentNo = (data['enrollmentNo'] ?? '').toString();
+    final groupName = (data['assignedGroupName'] ?? '').toString();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFFE2E8F0),
+            backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+            child: imageUrl.isEmpty
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+                if (enrollmentNo.isNotEmpty)
+                  Text(
+                    enrollmentNo,
+                    style: const TextStyle(color: Color(0xFF64748B)),
+                  ),
+                if (groupName.isNotEmpty)
+                  Text(
+                    groupName,
+                    style: const TextStyle(color: Color(0xFF64748B)),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
