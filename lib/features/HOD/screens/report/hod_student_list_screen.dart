@@ -41,6 +41,7 @@ class HodStudentListScreen extends StatelessWidget {
                   students[index].data() as Map<String, dynamic>? ?? {};
 
               final name = data["fullName"] ?? "Student";
+              final imageUrl = (data["profileImageUrl"] ?? "").toString();
               final enrollment = data["enrollmentNo"] ?? "";
               
               // Use uid field if available (for matching with reports), otherwise use document id
@@ -49,9 +50,14 @@ class HodStudentListScreen extends StatelessWidget {
               return ListTile(
 
                 leading: CircleAvatar(
-                  child: Text(name.toString().isNotEmpty
-                      ? name[0].toUpperCase()
-                      : "S"),
+                  backgroundImage: imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : null,
+                  child: imageUrl.isEmpty
+                      ? Text(name.toString().isNotEmpty
+                          ? name[0].toUpperCase()
+                          : "S")
+                      : null,
                 ),
 
                 title: Text(name),

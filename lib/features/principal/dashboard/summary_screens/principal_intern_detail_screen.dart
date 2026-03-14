@@ -9,6 +9,7 @@ class PrincipalInternDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (internData['profileImageUrl'] ?? '').toString();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -35,14 +36,19 @@ class PrincipalInternDetailScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 35,
                     backgroundColor: jasmine,
-                    child: Text(
-                      internData['name'][0],
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? Text(
+                            internData['name'][0],
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 20),
                   Expanded(

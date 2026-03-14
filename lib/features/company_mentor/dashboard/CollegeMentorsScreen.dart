@@ -58,6 +58,7 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
           "department": data["department"] ?? "General",
           "email": data["email"] ?? "",
           "phone": data["phone"] ?? "",
+          "profileImageUrl": data["profileImageUrl"] ?? "",
           "interns": dynamicInternCount, // Assigning the real-time count here!
         });
       }
@@ -251,6 +252,8 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
                         String initial = mentor["name"].isNotEmpty 
                             ? mentor["name"][0].toUpperCase() 
                             : "?";
+                        final String imageUrl =
+                            (mentor["profileImageUrl"] ?? "").toString();
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -260,11 +263,16 @@ class _CollegeMentorsScreenState extends State<CollegeMentorsScreen> {
                                 children: [
                                   CircleAvatar(
                                     backgroundColor: Colors.blue.shade100,
-                                    child: Text(
-                                      initial,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
+                                    backgroundImage: imageUrl.isNotEmpty
+                                        ? NetworkImage(imageUrl)
+                                        : null,
+                                    child: imageUrl.isEmpty
+                                        ? Text(
+                                            initial,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          )
+                                        : null,
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(

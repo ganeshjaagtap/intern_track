@@ -124,6 +124,7 @@ class _CompanyMentorInternsScreenState extends State<CompanyMentorInternsScreen>
     final String name = data['fullName'] ?? "Unnamed";
     final String college = data['college_name'] ?? "Government Polytechnic College Aurangabad";
     final String role = data['internshipRole'] ?? "Intern";
+    final String imageUrl = (data['profileImageUrl'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(top: 16),
@@ -152,10 +153,15 @@ class _CompanyMentorInternsScreenState extends State<CompanyMentorInternsScreen>
                           CircleAvatar(
                             radius: 28,
                             backgroundColor: const Color(0xFFF0F7FF),
-                            child: Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : "?",
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF5F9ED6), fontSize: 20),
-                            ),
+                            backgroundImage: imageUrl.isNotEmpty
+                                ? NetworkImage(imageUrl)
+                                : null,
+                            child: imageUrl.isEmpty
+                                ? Text(
+                                    name.isNotEmpty ? name[0].toUpperCase() : "?",
+                                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF5F9ED6), fontSize: 20),
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 16),
                           Expanded(

@@ -22,25 +22,29 @@ class _CompanyMentorReportsScreenState
     {
       "name": "John Doe",
       "college": "ABC Engineering College",
-      "status": "Approved"
+      "status": "Approved",
+      "profileImageUrl": ""
     },
 
     {
       "name": "Aisha Khan",
       "college": "XYZ Institute",
-      "status": "Pending"
+      "status": "Pending",
+      "profileImageUrl": ""
     },
 
     {
       "name": "Rohit Sharma",
       "college": "ABC Engineering College",
-      "status": "Approved"
+      "status": "Approved",
+      "profileImageUrl": ""
     },
 
     {
       "name": "Priya Mehta",
       "college": "LMN University",
-      "status": "Pending"
+      "status": "Pending",
+      "profileImageUrl": ""
     },
   ];
 
@@ -188,6 +192,7 @@ class _CompanyMentorReportsScreenState
                 itemBuilder: (context, index) {
 
                   final intern = filteredInterns[index];
+                  final imageUrl = (intern["profileImageUrl"] ?? "").toString();
 
                   return GestureDetector(
 
@@ -200,6 +205,7 @@ class _CompanyMentorReportsScreenState
                             internName: intern["name"],
                             college: intern["college"],
                             status: intern["status"],
+                            profileImageUrl: intern["profileImageUrl"],
                           ),
                         ),
                       );
@@ -238,13 +244,18 @@ class _CompanyMentorReportsScreenState
 
                           CircleAvatar(
                             backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              intern["name"][0],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
+                            backgroundImage: imageUrl.isNotEmpty
+                                ? NetworkImage(imageUrl)
+                                : null,
+                            child: imageUrl.isEmpty
+                                ? Text(
+                                    intern["name"][0],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                    ),
+                                  )
+                                : null,
                           ),
 
                           const SizedBox(width: 12),

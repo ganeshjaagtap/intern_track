@@ -180,6 +180,7 @@ class _FacultyStudentListScreenState extends State<FacultyStudentListScreen>
             final status = (data["status"] ?? "pending").toString();
             final submittedAt = _formatDate(data["submittedAt"] ?? data["createdAt"]);
             final studentName = (data["studentName"] ?? "Student").toString();
+            final studentId = (data["studentId"] ?? "").toString();
             final avatarText =
                 studentName.trim().isNotEmpty ? studentName[0].toUpperCase() : "S";
 
@@ -215,16 +216,36 @@ class _FacultyStudentListScreenState extends State<FacultyStudentListScreen>
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                const Color(0xFF6BB6FF).withOpacity(0.1),
-                            child: Text(
-                              avatarText,
-                              style: const TextStyle(
-                                color: Color(0xFF6BB6FF),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: studentId.isEmpty
+                                ? null
+                                : FirebaseFirestore.instance
+                                    .collection('user')
+                                    .doc(studentId)
+                                    .snapshots(),
+                            builder: (context, studentSnapshot) {
+                              final studentData = studentSnapshot.data?.data()
+                                  as Map<String, dynamic>? ?? {};
+                              final imageUrl =
+                                  (studentData["profileImageUrl"] ?? "").toString();
+
+                              return CircleAvatar(
+                                backgroundColor:
+                                    const Color(0xFF6BB6FF).withOpacity(0.1),
+                                backgroundImage: imageUrl.isNotEmpty
+                                    ? NetworkImage(imageUrl)
+                                    : null,
+                                child: imageUrl.isEmpty
+                                    ? Text(
+                                        avatarText,
+                                        style: const TextStyle(
+                                          color: Color(0xFF6BB6FF),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            },
                           ),
                           const SizedBox(width: 14),
                           Expanded(

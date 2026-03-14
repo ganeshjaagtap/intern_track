@@ -59,7 +59,12 @@ class _CompanyMentorAttendanceScreenState
             status = rawStatus[0].toUpperCase() + rawStatus.substring(1).toLowerCase();
           }
         }
-        tempList.add({"name": name, "college": college, "status": status});
+        tempList.add({
+          "name": name,
+          "college": college,
+          "status": status,
+          "profileImageUrl": userData['profileImageUrl'] ?? "",
+        });
       }
       setState(() {
         allInterns = tempList;
@@ -282,6 +287,7 @@ class _CompanyMentorAttendanceScreenState
       itemBuilder: (context, index) {
         final intern = displayedInterns[index];
         final statusColor = _getStatusColor(intern["status"]);
+        final imageUrl = (intern["profileImageUrl"] ?? "").toString();
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -295,10 +301,15 @@ class _CompanyMentorAttendanceScreenState
             leading: CircleAvatar(
               radius: 24,
               backgroundColor: statusColor.withOpacity(0.1),
-              child: Text(
-                intern["name"][0].toUpperCase(), 
-                style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)
-              ),
+              backgroundImage: imageUrl.isNotEmpty
+                  ? NetworkImage(imageUrl)
+                  : null,
+              child: imageUrl.isEmpty
+                  ? Text(
+                      intern["name"][0].toUpperCase(), 
+                      style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)
+                    )
+                  : null,
             ),
             title: Text(intern["name"], style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15)),
             subtitle: Text(

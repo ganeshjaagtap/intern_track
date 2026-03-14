@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'ChatScreen.dart';
 
@@ -6,65 +7,66 @@ class MentorListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    final List<String> mentors = [
-      "Prof. Sudhir Cavan",
-      "Prof. R. S. Sindge",
-      "Prof. M. B. Dahival",
-      "Prof. J. V. Patil",
-    ];
-
     return Scaffold(
-
       appBar: AppBar(
         title: const Text("College Mentors"),
       ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('user')
+            .where('role', isEqualTo: 'faculty')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No mentors found"));
+          }
 
-        itemCount: mentors.length,
+          final mentors = snapshot.data!.docs;
 
-        itemBuilder: (context, index) {
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: mentors.length,
+            itemBuilder: (context, index) {
+              final data = mentors[index].data() as Map<String, dynamic>;
+              final mentor =
+                  (data['fullName'] ?? data['name'] ?? 'Mentor').toString();
+              final imageUrl = (data['profileImageUrl'] ?? '').toString();
 
-          final mentor = mentors[index];
-
-          return Card(
-            elevation: 2,
-            margin: const EdgeInsets.only(bottom: 12),
-
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-
-            child: ListTile(
-
-              leading: CircleAvatar(
-                child: Text(mentor[0]),
-              ),
-
-              title: Text(
-                mentor,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ),
-
-              subtitle: const Text("College Mentor"),
-
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-
-              onTap: () {
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(title: mentor),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage:
+                        imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                    child: imageUrl.isEmpty ? Text(mentor[0]) : null,
                   ),
-                );
-
-              },
-            ),
+                  title: Text(
+                    mentor,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: const Text("College Mentor"),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(title: mentor),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),

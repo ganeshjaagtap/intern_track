@@ -40,6 +40,7 @@ class ActiveInternshipsScreen extends StatelessWidget {
                   students[index].data() as Map<String, dynamic>;
 
               final name = student["fullName"] ?? "Student";
+              final imageUrl = (student["profileImageUrl"] ?? "").toString();
               final company = student["company"] ?? "-";
               final role = student["internshipRole"] ?? "-";
 
@@ -51,7 +52,12 @@ class ActiveInternshipsScreen extends StatelessWidget {
 
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue.shade100,
-                    child: Text(name.toString()[0]),
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? Text(name.toString()[0])
+                        : null,
                   ),
 
                   title: Text(

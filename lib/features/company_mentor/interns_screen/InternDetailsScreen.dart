@@ -22,6 +22,7 @@ class InternDetailsScreen extends StatelessWidget {
     final String studentUid = studentData['uid']?.toString() ?? ""; 
     final String enrollmentNo = studentData['enrollmentNo']?.toString() ?? studentUid;
     final String name = studentData['fullName']?.toString() ?? "Unnamed Intern";
+    final String profileImageUrl = studentData['profileImageUrl']?.toString() ?? "";
     
     // ✅ FIX: Specifically fetching the college name string
     final String college = studentData['college_name']?.toString() ?? "Government Polytechnic College Aurangabad";
@@ -59,7 +60,7 @@ class InternDetailsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// 1. PROFILE HEADER (Showing your College String)
-            _buildProfileHeader(name, college, role),
+            _buildProfileHeader(name, college, role, profileImageUrl),
             const SizedBox(height: 24),
             
             _sectionTitle("Internship Timeline"),
@@ -139,7 +140,7 @@ class InternDetailsScreen extends StatelessWidget {
 
   // --- UI COMPONENTS ---
 
-  Widget _buildProfileHeader(String name, String college, String role) {
+  Widget _buildProfileHeader(String name, String college, String role, String profileImageUrl) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -152,8 +153,13 @@ class InternDetailsScreen extends StatelessWidget {
           CircleAvatar(
             radius: 35,
             backgroundColor: const Color(0xFF5F9ED6).withOpacity(0.1),
-            child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?", 
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF5F9ED6))),
+            backgroundImage: profileImageUrl.isNotEmpty
+                ? NetworkImage(profileImageUrl)
+                : null,
+            child: profileImageUrl.isEmpty
+                ? Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF5F9ED6)))
+                : null,
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -208,11 +214,19 @@ class InternDetailsScreen extends StatelessWidget {
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Text("No Mentor Assigned.");
         final mentor = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+        final mentorImageUrl = (mentor['profileImageUrl'] ?? '').toString();
         return Card(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.grey.shade200)),
           child: ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.school, color: Colors.blue)),
+            leading: CircleAvatar(
+              backgroundImage: mentorImageUrl.isNotEmpty
+                  ? NetworkImage(mentorImageUrl)
+                  : null,
+              child: mentorImageUrl.isEmpty
+                  ? const Icon(Icons.school, color: Colors.blue)
+                  : null,
+            ),
             title: Text(mentor['fullName'] ?? "Mentor", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             subtitle: Text(mentor['department'] ?? "Faculty", style: const TextStyle(fontSize: 12)),
             trailing: IconButton(

@@ -15,6 +15,7 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
 
     final name = student["fullName"] ?? "Student";
     final studentId = (student["uid"] ?? "").toString();
+    final imageUrl = (student["profileImageUrl"] ?? "").toString();
 
     return Scaffold(
 
@@ -34,15 +35,20 @@ class CompletedInternshipDetailsScreen extends StatelessWidget {
               child: CircleAvatar(
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  name.toString().isNotEmpty
-                      ? name.toString()[0]
-                      : "S",
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: imageUrl.isEmpty
+                    ? Text(
+                        name.toString().isNotEmpty
+                            ? name.toString()[0]
+                            : "S",
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
               ),
             ),
 

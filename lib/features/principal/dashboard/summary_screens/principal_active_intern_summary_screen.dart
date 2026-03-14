@@ -378,33 +378,40 @@ class _PrincipalActiveInternSummaryScreenState
               ...companyStudents
                   .take(4)
                   .map(
-                    (s) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: jasmine.withOpacity(0.3),
-                        child: const Icon(
-                          Icons.person,
-                          size: 18,
-                          color: Colors.black,
+                    (s) {
+                      final imageUrl = (s['profileImageUrl'] ?? '').toString();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: jasmine.withOpacity(0.3),
+                          backgroundImage:
+                              imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                          child: imageUrl.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 18,
+                                  color: Colors.black,
+                                )
+                              : null,
                         ),
-                      ),
-                      title: Text(
-                        s['name'],
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: Text(s['dept']),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                      onTap: () {
-                        Navigator.pop(context); // Close bottom sheet
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                PrincipalInternDetailScreen(internData: s),
-                          ),
-                        );
-                      },
-                    ),
+                        title: Text(
+                          s['name'],
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(s['dept']),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 12),
+                        onTap: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PrincipalInternDetailScreen(internData: s),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
             const SizedBox(height: 10),
           ],
@@ -463,6 +470,7 @@ class _PrincipalActiveInternSummaryScreenState
   Widget _buildProgressCard(Map<String, dynamic> intern) {
     // Logic: current week divided by total fixed weeks (16)
     double progressValue = intern['week'] / intern['total'];
+    final imageUrl = (intern['profileImageUrl'] ?? '').toString();
 
     return GestureDetector(
       onTap: () {
@@ -488,13 +496,17 @@ class _PrincipalActiveInternSummaryScreenState
               children: [
                 CircleAvatar(
                   backgroundColor: jasmine,
-                  child: Text(
-                    intern['name'][0],
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundImage:
+                      imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                  child: imageUrl.isEmpty
+                      ? Text(
+                          intern['name'][0],
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

@@ -133,6 +133,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         final data = doc.data() as Map<String, dynamic>;
                         final name = data['fullName'] ?? data['name'] ?? 'N/A';
                         final roll = data['enrollmentNo'] ?? 'N/A';
+                        final imageUrl = (data['profileImageUrl'] ?? '').toString();
 
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -141,7 +142,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: const Color(0xFF6BB6FF).withOpacity(0.2),
-                              child: Text(name[0].toUpperCase(), style: const TextStyle(color: Color(0xFF1976D2))),
+                              backgroundImage: imageUrl.isNotEmpty
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl.isEmpty
+                                  ? Text(name[0].toUpperCase(), style: const TextStyle(color: Color(0xFF1976D2)))
+                                  : null,
                             ),
                             title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text("Roll No: $roll"),

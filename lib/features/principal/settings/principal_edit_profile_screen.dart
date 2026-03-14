@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class PrincipalEditProfileScreen extends StatelessWidget {
+class PrincipalEditProfileScreen extends StatefulWidget {
   const PrincipalEditProfileScreen({super.key});
 
+  @override
+  State<PrincipalEditProfileScreen> createState() =>
+      _PrincipalEditProfileScreenState();
+}
+
+class _PrincipalEditProfileScreenState extends State<PrincipalEditProfileScreen> {
+  String _profileImageUrl = "";
+
   final Color coolSky = const Color(0xFF60B5FF);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('user')
+        .doc(currentUser.uid)
+        .get();
+
+    if (!mounted) return;
+
+    final data = userDoc.data() as Map<String, dynamic>? ?? {};
+    setState(() {
+      _profileImageUrl = (data['profileImageUrl'] ?? '').toString();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,12 +61,17 @@ class PrincipalEditProfileScreen extends StatelessWidget {
             Center(
               child: Stack(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 60,
                     backgroundColor: Color(
                       0xFFF35252,
                     ), // Strawberry color from your palette
-                    child: Icon(Icons.person, size: 70, color: Colors.white),
+                    backgroundImage: _profileImageUrl.isNotEmpty
+                        ? NetworkImage(_profileImageUrl)
+                        : null,
+                    child: _profileImageUrl.isEmpty
+                        ? const Icon(Icons.person, size: 70, color: Colors.white)
+                        : null,
                   ),
                   Positioned(
                     bottom: 0,

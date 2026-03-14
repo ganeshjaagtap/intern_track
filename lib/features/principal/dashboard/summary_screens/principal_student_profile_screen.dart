@@ -9,6 +9,7 @@ class PrincipalStudentProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (studentData['profileImageUrl'] ?? '').toString();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -38,14 +39,19 @@ class PrincipalStudentProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: coolSky,
-                  child: Text(
-                    studentData['name']![0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 40,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundImage: imageUrl.isNotEmpty
+                      ? NetworkImage(imageUrl)
+                      : null,
+                  child: imageUrl.isEmpty
+                      ? Text(
+                          studentData['name']![0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 15),
                 Text(

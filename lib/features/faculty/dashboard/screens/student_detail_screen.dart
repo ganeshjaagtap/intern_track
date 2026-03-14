@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentDetailsScreen extends StatelessWidget {
   final Map<String, String> student;
@@ -19,14 +20,32 @@ class StudentDetailsScreen extends StatelessWidget {
 
             /// Student Avatar
             Center(
-              child: CircleAvatar(
-                radius: 45,
-                backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  (student["name"] ?? "S")[0].toUpperCase(),
-                  style: const TextStyle(
-                      fontSize: 30, fontWeight: FontWeight.bold),
-                ),
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: (student["docId"] ?? "").isEmpty
+                    ? null
+                    : FirebaseFirestore.instance
+                        .collection('user')
+                        .doc(student["docId"])
+                        .snapshots(),
+                builder: (context, snapshot) {
+                  final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+                  final imageUrl = (data["profileImageUrl"] ?? "").toString();
+
+                  return CircleAvatar(
+                    radius: 45,
+                    backgroundColor: Colors.blue.shade100,
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? Text(
+                            (student["name"] ?? "S")[0].toUpperCase(),
+                            style: const TextStyle(
+                                fontSize: 30, fontWeight: FontWeight.bold),
+                          )
+                        : null,
+                  );
+                },
               ),
             ),
 

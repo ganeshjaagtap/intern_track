@@ -106,6 +106,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         as Map<String,dynamic>;
 
                     final name = data["fullName"] ?? "Student";
+                    final imageUrl = (data["profileImageUrl"] ?? "").toString();
 
                     return Card(
 
@@ -117,10 +118,15 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       child: ListTile(
 
                         leading: CircleAvatar(
+                          backgroundImage: imageUrl.isNotEmpty
+                              ? NetworkImage(imageUrl)
+                              : null,
                           child: Text(
-                            name.toString().isNotEmpty
+                            imageUrl.isEmpty && name.toString().isNotEmpty
                                 ? name.toString()[0].toUpperCase()
-                                : "S",
+                                : imageUrl.isEmpty
+                                    ? "S"
+                                    : "",
                           ),
                         ),
 

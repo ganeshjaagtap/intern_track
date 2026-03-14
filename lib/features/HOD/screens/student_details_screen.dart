@@ -15,6 +15,7 @@ class StudentDetailsScreen extends StatelessWidget {
 
     /// Safe student name
     final String name = (student["fullName"] ?? "Student").toString();
+    final String imageUrl = (student["profileImageUrl"] ?? "").toString();
 
     return Scaffold(
       appBar: AppBar(title: Text(name)),
@@ -30,13 +31,18 @@ class StudentDetailsScreen extends StatelessWidget {
               child: CircleAvatar(
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  (name.isNotEmpty ? name[0] : "S").toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: imageUrl.isEmpty
+                    ? Text(
+                        (name.isNotEmpty ? name[0] : "S").toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
               ),
             ),
 

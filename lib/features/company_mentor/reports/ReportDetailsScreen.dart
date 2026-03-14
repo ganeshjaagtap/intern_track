@@ -4,12 +4,14 @@ class ReportDetailsScreen extends StatefulWidget {
   final String internName;
   final String college;
   final String status;
+  final String? profileImageUrl;
 
   const ReportDetailsScreen({
     super.key,
     required this.internName,
     required this.college,
     required this.status,
+    this.profileImageUrl,
   });
 
   @override
@@ -36,6 +38,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (widget.profileImageUrl ?? '').toString();
 
     return Scaffold(
 
@@ -62,10 +65,14 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
 
                 leading: CircleAvatar(
                   radius: 25,
-                  child: Text(
-                    widget.internName[0],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  backgroundImage:
+                      imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                  child: imageUrl.isEmpty
+                      ? Text(
+                          widget.internName[0],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        )
+                      : null,
                 ),
 
                 title: Text(

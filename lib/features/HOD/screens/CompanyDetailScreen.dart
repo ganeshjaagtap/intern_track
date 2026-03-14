@@ -92,6 +92,9 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     final String about = widget.companyData['about'] ?? 'No description available.';
     final String experience = widget.companyData['experience'] ?? 'N/A';
     final String phone = widget.companyData['phone'] ?? widget.companyData['phone_number'] ?? 'N/A';
+    final String logoUrl =
+        (widget.companyData['logoUrl'] ?? widget.companyData['companyLogoUrl'] ?? '')
+            .toString();
     final dynamic internCount = widget.companyData['internCount'] ?? 0;
     
     final List<String> courses = widget.companyData['courses'] is List 
@@ -110,7 +113,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(name, industry),
+            _buildHeader(name, industry, logoUrl),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -157,7 +160,7 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     );
   }
 
-  Widget _buildHeader(String name, String industry) {
+  Widget _buildHeader(String name, String industry, String logoUrl) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
@@ -168,12 +171,16 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
           bottomRight: Radius.circular(40),
         ),
       ),
-      child: Column(
+        child: Column(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 50,
             backgroundColor: Colors.white,
-            child: Icon(Icons.business_rounded, size: 55, color: Color(0xFF64A9F6)),
+            backgroundImage:
+                logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+            child: logoUrl.isEmpty
+                ? const Icon(Icons.business_rounded, size: 55, color: Color(0xFF64A9F6))
+                : null,
           ),
           const SizedBox(height: 16),
           Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +23,31 @@ class _PrincipalProfileScreenState extends State<PrincipalProfileScreen> {
 
   // ✅ UNIVERSAL DATA: Works for Chrome (Blob) and Mobile (Path)
   String? _imagePath;
+  String? _profileImageUrl;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('user')
+        .doc(currentUser.uid)
+        .get();
+
+    if (!mounted) return;
+
+    final data = userDoc.data() as Map<String, dynamic>? ?? {};
+    setState(() {
+      _profileImageUrl = (data['profileImageUrl'] ?? '').toString();
+    });
+  }
 
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(
@@ -82,8 +107,13 @@ class _PrincipalProfileScreenState extends State<PrincipalProfileScreen> {
                                   ? NetworkImage(_imagePath!)
                                   : FileImage(File(_imagePath!))
                                         as ImageProvider)
-                            : null,
-                        child: _imagePath == null
+                            : (_profileImageUrl != null &&
+                                    _profileImageUrl!.isNotEmpty
+                                ? NetworkImage(_profileImageUrl!)
+                                : null),
+                        child: _imagePath == null &&
+                                (_profileImageUrl == null ||
+                                    _profileImageUrl!.isEmpty)
                             ? Icon(
                                 Icons.person,
                                 size: 45,

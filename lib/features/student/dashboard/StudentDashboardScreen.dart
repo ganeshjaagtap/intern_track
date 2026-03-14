@@ -214,6 +214,7 @@ class StudentDashboardScreen extends StatelessWidget {
         final String mPhone = mentorData['phoneNumber'] ?? "N/A";
         final String mEmail = mentorData['email'] ?? "N/A";
         final String mDept = mentorData['dept'] ?? mentorData['company_name'] ?? "IT Department";
+        final String imageUrl = (mentorData['profileImageUrl'] ?? "").toString();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,6 +223,7 @@ class StudentDashboardScreen extends StatelessWidget {
             _buildMentorHeader(
               name: mName,
               subtitle: mDept,
+              imageUrl: imageUrl,
             ),
             const SizedBox(height: 24),
             _buildCallButton(
@@ -291,6 +293,7 @@ class StudentDashboardScreen extends StatelessWidget {
         final String mCompany = (mentorData['company_name'] ?? fallbackCompanyName ?? "N/A").toString();
         final String mDesignation = (mentorData['designation'] ?? mentorData['dept'] ?? "").toString();
         final String mDepartment = (mentorData['dept'] ?? "").toString();
+        final String imageUrl = (mentorData['profileImageUrl'] ?? "").toString();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,6 +302,7 @@ class StudentDashboardScreen extends StatelessWidget {
             _buildMentorHeader(
               name: mName,
               subtitle: mDesignation.isNotEmpty ? mDesignation : mCompany,
+              imageUrl: imageUrl,
             ),
             const SizedBox(height: 24),
             _buildCallButton(
@@ -374,13 +378,19 @@ class StudentDashboardScreen extends StatelessWidget {
   Widget _buildMentorHeader({
     required String name,
     required String subtitle,
+    String imageUrl = '',
   }) {
     return Row(
       children: [
         CircleAvatar(
           radius: 32,
           backgroundColor: Colors.blue.withOpacity(0.1),
-          child: Text(_initials(name), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)),
+          backgroundImage: imageUrl.isNotEmpty
+              ? NetworkImage(imageUrl)
+              : null,
+          child: imageUrl.isEmpty
+              ? Text(_initials(name), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue))
+              : null,
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -790,6 +800,8 @@ class StudentDashboardScreen extends StatelessWidget {
             final String experience = data['experience'] ?? "N/A";
             final dynamic internCount = data['internCount'] ?? 0;
             final List courses = data['courses'] ?? [];
+            final String logoUrl =
+                (data['logoUrl'] ?? data['companyLogoUrl'] ?? '').toString();
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -826,7 +838,11 @@ class StudentDashboardScreen extends StatelessWidget {
                             CircleAvatar(
                               radius: 24,
                               backgroundColor: Colors.blue.withOpacity(0.1),
-                              child: const Icon(Icons.business_rounded, color: Colors.blue, size: 24),
+                              backgroundImage:
+                                  logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+                              child: logoUrl.isEmpty
+                                  ? const Icon(Icons.business_rounded, color: Colors.blue, size: 24)
+                                  : null,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -959,6 +975,7 @@ class StudentDashboardScreen extends StatelessWidget {
                           builder: (context, userSnap) {
                             if (!userSnap.hasData) return const SizedBox();
                             final member = userSnap.data!.data() as Map<String, dynamic>;
+                            final imageUrl = (member['profileImageUrl'] ?? "").toString();
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -968,7 +985,12 @@ class StudentDashboardScreen extends StatelessWidget {
                                   CircleAvatar(
                                     radius: 18,
                                     backgroundColor: Colors.blue.withOpacity(0.2),
-                                    child: Text(_initials(member['fullName'] ?? "T"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    backgroundImage: imageUrl.isNotEmpty
+                                        ? NetworkImage(imageUrl)
+                                        : null,
+                                    child: imageUrl.isEmpty
+                                        ? Text(_initials(member['fullName'] ?? "T"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))
+                                        : null,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(

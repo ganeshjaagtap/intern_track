@@ -235,6 +235,7 @@ class _PrincipalFullMasterListState extends State<PrincipalFullMasterList> {
   }
 
   Widget _buildMasterStudentCard(Map<String, String> student) {
+    final imageUrl = (student['profileImageUrl'] ?? '').toString();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -245,13 +246,16 @@ class _PrincipalFullMasterListState extends State<PrincipalFullMasterList> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           backgroundColor: const Color(0xFFD0E0FF),
-          child: Text(
-            student['name']![0].toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFF4A80FF),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+          child: imageUrl.isEmpty
+              ? Text(
+                  student['name']![0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF4A80FF),
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
         ),
         title: Text(
           student['name']!,

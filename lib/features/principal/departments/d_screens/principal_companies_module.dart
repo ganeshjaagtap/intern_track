@@ -122,6 +122,8 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
               itemCount: filteredCompanies.length,
               itemBuilder: (context, index) {
                 final company = filteredCompanies[index];
+                final logoUrl =
+                    (company["logoUrl"] ?? company["companyLogoUrl"] ?? "").toString();
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
@@ -140,11 +142,15 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
                     leading: CircleAvatar(
                       radius: 28,
                       backgroundColor: primaryBlue.withOpacity(0.1),
-                      child: const Icon(
-                        Icons.business_rounded,
-                        color: primaryBlue,
-                        size: 28,
-                      ),
+                      backgroundImage:
+                          logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+                      child: logoUrl.isEmpty
+                          ? const Icon(
+                              Icons.business_rounded,
+                              color: primaryBlue,
+                              size: 28,
+                            )
+                          : null,
                     ),
                     title: Text(
                       company["name"],
@@ -188,6 +194,8 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primaryBlue = Color(0xFF64A9F6);
+    final logoUrl =
+        (companyData["logoUrl"] ?? companyData["companyLogoUrl"] ?? "").toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -226,10 +234,18 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.business_rounded,
-                      size: 50,
-                      color: primaryBlue,
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      backgroundImage:
+                          logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+                      child: logoUrl.isEmpty
+                          ? const Icon(
+                              Icons.business_rounded,
+                              size: 50,
+                              color: primaryBlue,
+                            )
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 15),

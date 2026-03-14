@@ -89,6 +89,7 @@ class _PrincipalStudentListScreenState
   }
 
   Widget _buildStudentCard(Map<String, String> student) {
+    final imageUrl = (student['profileImageUrl'] ?? '').toString();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -99,13 +100,18 @@ class _PrincipalStudentListScreenState
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           backgroundColor: const Color(0xFFD0E0FF), // Match avatar background
-          child: Text(
-            student['name']![0].toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFF4A80FF), // Match initial letter color
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          backgroundImage: imageUrl.isNotEmpty
+              ? NetworkImage(imageUrl)
+              : null,
+          child: imageUrl.isEmpty
+              ? Text(
+                  student['name']![0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF4A80FF), // Match initial letter color
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
         ),
         title: Text(
           student['name']!,

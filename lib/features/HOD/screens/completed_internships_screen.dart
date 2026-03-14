@@ -40,6 +40,7 @@ class CompletedInternshipsScreen extends StatelessWidget {
                   students[index].data() as Map<String, dynamic>;
 
               final name = student["fullName"] ?? "Student";
+              final imageUrl = (student["profileImageUrl"] ?? "").toString();
               final company = student["company"] ?? "-";
               final role = student["internshipRole"] ?? "-";
 
@@ -49,7 +50,12 @@ class CompletedInternshipsScreen extends StatelessWidget {
                 child: ListTile(
 
                   leading: CircleAvatar(
-                    child: Text(name.toString()[0]),
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? Text(name.toString()[0])
+                        : null,
                   ),
 
                   title: Text(name),

@@ -103,7 +103,10 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
                         radius: 56,
                         backgroundImage: img.isNotEmpty
                             ? NetworkImage(img)
-                            : const NetworkImage("https://i.pravatar.cc/150"),
+                            : null,
+                        child: img.isEmpty
+                            ? const Icon(Icons.person)
+                            : null,
                       ),
                     ),
                   ),

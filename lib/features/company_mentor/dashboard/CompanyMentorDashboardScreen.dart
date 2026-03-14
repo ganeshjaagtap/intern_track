@@ -24,6 +24,7 @@ class _CompanyMentorDashboardScreenState
   String companyName = "Loading...";
   String location = "Loading...";
   String designation = "Loading...";
+  String companyLogoUrl = "";
   int internCount = 0;
   int reviewCount = 0; // Dynamic count for tasks to be approved
   bool isLoading = true;
@@ -50,6 +51,8 @@ class _CompanyMentorDashboardScreenState
           companyName = data["company_name"] ?? "Company Not Provided";
           location = data["company_address"] ?? "Location Not Set";
           designation = data["designation"] ?? "Mentor";
+          companyLogoUrl =
+              (data["logoUrl"] ?? data["companyLogoUrl"] ?? "").toString();
           internCount = data["total_students"] ?? 0;
         }
 
@@ -183,7 +186,15 @@ class _CompanyMentorDashboardScreenState
           Container(
             height: 60, width: 60,
             decoration: BoxDecoration(color: const Color(0xFFE6EEF7), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.business, size: 32, color: Colors.blueGrey),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: companyLogoUrl.isNotEmpty
+                  ? Image.network(
+                      companyLogoUrl,
+                      fit: BoxFit.cover,
+                    )
+                  : const Icon(Icons.business, size: 32, color: Colors.blueGrey),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

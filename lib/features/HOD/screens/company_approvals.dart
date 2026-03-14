@@ -11,6 +11,7 @@ class CompanyApprovalsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoUrl = (company["logoUrl"] ?? company["companyLogoUrl"] ?? "").toString();
 
     return Scaffold(
       appBar: AppBar(
@@ -29,10 +30,13 @@ class CompanyApprovalsScreen extends StatelessWidget {
               child: CircleAvatar(
                 radius: 45,
                 backgroundColor: Colors.blue.shade100,
-                child: const Icon(
-                  Icons.business,
-                  size: 35,
-                ),
+                backgroundImage: logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+                child: logoUrl.isEmpty
+                    ? const Icon(
+                        Icons.business,
+                        size: 35,
+                      )
+                    : null,
               ),
             ),
 

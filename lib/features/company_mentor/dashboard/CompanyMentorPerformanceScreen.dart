@@ -99,6 +99,7 @@ class _CompanyMentorPerformanceScreenState extends State<CompanyMentorPerformanc
                       performanceList.add({
                         "name": sData['fullName'] ?? "Unnamed Intern",
                         "college": sData['college_name'] ?? "N/A",
+                        "profileImageUrl": sData['profileImageUrl'] ?? "",
                         "progress": progress,
                         "tasks": verifiedTasks.length,
                         "total": studentTasks.length,
@@ -160,6 +161,7 @@ class _CompanyMentorPerformanceScreenState extends State<CompanyMentorPerformanc
   Widget _buildInternCard(Map<String, dynamic> intern) {
     double prog = intern['progress'];
     Color progColor = prog < 0.4 ? Colors.red : (prog < 0.7 ? Colors.orange : Colors.green);
+    final imageUrl = (intern['profileImageUrl'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -173,7 +175,15 @@ class _CompanyMentorPerformanceScreenState extends State<CompanyMentorPerformanc
         children: [
           Row(
             children: [
-              CircleAvatar(backgroundColor: progColor.withOpacity(0.1), child: Text(intern['name'][0], style: TextStyle(color: progColor, fontWeight: FontWeight.bold))),
+              CircleAvatar(
+                backgroundColor: progColor.withOpacity(0.1),
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: imageUrl.isEmpty
+                    ? Text(intern['name'][0], style: TextStyle(color: progColor, fontWeight: FontWeight.bold))
+                    : null,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

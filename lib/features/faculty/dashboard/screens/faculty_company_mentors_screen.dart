@@ -100,6 +100,7 @@ class _FacultyCompanyMentorsScreenState
               "email": (raw["email"] ?? "").toString(),
               "phone":
                   (raw["phoneNumber"] ?? raw["phone"] ?? "").toString(),
+              "profileImageUrl": (raw["profileImageUrl"] ?? "").toString(),
             };
           }
         }
@@ -111,6 +112,7 @@ class _FacultyCompanyMentorsScreenState
           "companyName": companyName,
           "email": "",
           "phone": "",
+          "profileImageUrl": "",
         };
 
         final dedupeKey = _mentorKey(mentorData);
@@ -183,6 +185,7 @@ class _FacultyCompanyMentorsScreenState
         final company = (mentor["companyName"] ?? "").toString().trim();
         final email = (mentor["email"] ?? "").toString().trim();
         final phone = (mentor["phone"] ?? "").toString().trim();
+        final imageUrl = (mentor["profileImageUrl"] ?? "").toString().trim();
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -195,13 +198,18 @@ class _FacultyCompanyMentorsScreenState
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: const Color(0xFF6BB6FF).withOpacity(0.12),
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : "M",
-                      style: const TextStyle(
-                        color: Color(0xFF6BB6FF),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : "M",
+                            style: const TextStyle(
+                              color: Color(0xFF6BB6FF),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -350,6 +358,8 @@ class _FacultyCompanyMentorsScreenState
                                     (mentor["email"] ?? "").toString().trim();
                                 final phone =
                                     (mentor["phone"] ?? "").toString().trim();
+                                final imageUrl =
+                                    (mentor["profileImageUrl"] ?? "").toString().trim();
                                 final subtitle = company.isNotEmpty
                                     ? company
                                     : (email.isNotEmpty
@@ -376,15 +386,20 @@ class _FacultyCompanyMentorsScreenState
                                     leading: CircleAvatar(
                                       backgroundColor:
                                           const Color(0xFF6BB6FF).withOpacity(0.12),
-                                      child: Text(
-                                        name.isNotEmpty
-                                            ? name[0].toUpperCase()
-                                            : "M",
-                                        style: const TextStyle(
-                                          color: Color(0xFF6BB6FF),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                      backgroundImage: imageUrl.isNotEmpty
+                                          ? NetworkImage(imageUrl)
+                                          : null,
+                                      child: imageUrl.isEmpty
+                                          ? Text(
+                                              name.isNotEmpty
+                                                  ? name[0].toUpperCase()
+                                                  : "M",
+                                              style: const TextStyle(
+                                                color: Color(0xFF6BB6FF),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
                                     ),
                                     title: Text(
                                       name,

@@ -167,7 +167,7 @@ class _MentorScreenState extends State<MentorScreen> {
                           "phone": data['phoneNumber']?.toString() ?? "",
                           "totalStudents": "",
                           "companies": "",
-                          "img": "",
+                          "img": data['profileImageUrl']?.toString() ?? "",
 
                         };
 
@@ -234,7 +234,10 @@ class _MentorScreenState extends State<MentorScreen> {
                   radius: 28,
                   backgroundImage: img.isNotEmpty
                       ? NetworkImage(img)
-                      : const NetworkImage("https://i.pravatar.cc/150"),
+                      : null,
+                  child: img.isEmpty
+                      ? const Icon(Icons.person)
+                      : null,
                 ),
 
                 const SizedBox(width: 15),

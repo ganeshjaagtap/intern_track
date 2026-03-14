@@ -137,6 +137,8 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     final String experience = company['experience'] ?? "N/A";
     final dynamic internCount = company['internCount'] ?? 0;
     final List courses = company['courses'] ?? [];
+    final String logoUrl =
+        (company['logoUrl'] ?? company['companyLogoUrl'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -174,7 +176,11 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                     CircleAvatar(
                       radius: 28,
                       backgroundColor: themeColor.withOpacity(0.1),
-                      child: Icon(Icons.business_rounded, color: themeColor, size: 30),
+                      backgroundImage:
+                          logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
+                      child: logoUrl.isEmpty
+                          ? Icon(Icons.business_rounded, color: themeColor, size: 30)
+                          : null,
                     ),
                     const SizedBox(width: 15),
                     Expanded(

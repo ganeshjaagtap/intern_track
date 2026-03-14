@@ -8,6 +8,7 @@ class FacultyDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (faculty["profileImageUrl"] ?? "").toString();
 
     return Scaffold(
       appBar: AppBar(
@@ -25,10 +26,15 @@ class FacultyDetailsScreen extends StatelessWidget {
             Center(
               child: CircleAvatar(
                 radius: 40,
-                child: Text(
-                  faculty["name"]![0],
-                  style: const TextStyle(fontSize: 24),
-                ),
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: imageUrl.isEmpty
+                    ? Text(
+                        faculty["name"]![0],
+                        style: const TextStyle(fontSize: 24),
+                      )
+                    : null,
               ),
             ),
 

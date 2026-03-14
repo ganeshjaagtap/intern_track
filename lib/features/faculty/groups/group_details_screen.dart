@@ -164,12 +164,21 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               builder: (context, userSnap) {
                 if (!userSnap.hasData || !userSnap.data!.exists) return const SizedBox();
                 final user = userSnap.data!.data() as Map<String, dynamic>;
+                final imageUrl = (user['profileImageUrl'] ?? '').toString();
                 bool isLeader = uid == leaderId;
                 return Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: isLeader ? const BorderSide(color: Colors.amber, width: 2) : BorderSide.none),
                   child: ListTile(
                     onLongPress: () => _setLeader(uid, user['fullName']),
-                    leading: CircleAvatar(backgroundColor: isLeader ? Colors.amber : Colors.blue.withOpacity(0.1), child: Icon(isLeader ? Icons.star : Icons.person, color: isLeader ? Colors.white : Colors.blue)),
+                    leading: CircleAvatar(
+                      backgroundColor: isLeader ? Colors.amber : Colors.blue.withOpacity(0.1),
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : null,
+                      child: imageUrl.isEmpty
+                          ? Icon(isLeader ? Icons.star : Icons.person, color: isLeader ? Colors.white : Colors.blue)
+                          : null,
+                    ),
                     title: Text(user['fullName'] ?? "Student", style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(user['enrollmentNo'] ?? ""),
                     trailing: IconButton(icon: const Icon(Icons.remove_circle, color: Colors.redAccent), onPressed: () => _removeStudent(uid)),

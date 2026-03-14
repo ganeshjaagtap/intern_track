@@ -131,6 +131,10 @@ class _ReviewApprovalsScreenState extends State<ReviewApprovalsScreen>
             final uid = doc.id;
             final name = data['fullName'] ?? data['name'] ?? "Unknown Name";
             final email = data['email'] ?? "No Email";
+            final imageUrl = (data['profileImageUrl'] ?? '').toString();
+            final logoUrl =
+                (data['logoUrl'] ?? data['companyLogoUrl'] ?? '').toString();
+            final avatarUrl = imageUrl.isNotEmpty ? imageUrl : logoUrl;
 
             String subtitleText = email;
             if (targetRole == 'student') {
@@ -149,11 +153,16 @@ class _ReviewApprovalsScreenState extends State<ReviewApprovalsScreen>
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: CircleAvatar(
                   backgroundColor: const Color(0xFF5F9ED6).withOpacity(0.2),
-                  child: Icon(
-                    targetRole == 'student' ? Icons.school :
-                    targetRole == 'faculty' ? Icons.person : Icons.business,
-                    color: const Color(0xFF5F9ED6),
-                  ),
+                  backgroundImage: avatarUrl.isNotEmpty
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  child: avatarUrl.isEmpty
+                      ? Icon(
+                          targetRole == 'student' ? Icons.school :
+                          targetRole == 'faculty' ? Icons.person : Icons.business,
+                          color: const Color(0xFF5F9ED6),
+                        )
+                      : null,
                 ),
                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text(subtitleText, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
@@ -220,6 +229,10 @@ class UserDetailView extends StatelessWidget {
     final name = userData['fullName'] ?? userData['name'] ?? "N/A";
     final email = userData['email'] ?? "N/A";
     final phone = userData['phone'] ?? "Not Provided";
+    final imageUrl = (userData['profileImageUrl'] ?? '').toString();
+    final logoUrl =
+        (userData['logoUrl'] ?? userData['companyLogoUrl'] ?? '').toString();
+    final avatarUrl = imageUrl.isNotEmpty ? imageUrl : logoUrl;
     final Color primaryBlue = const Color(0xFF5F9ED6);
 
     return Scaffold(
@@ -234,7 +247,12 @@ class UserDetailView extends StatelessWidget {
             CircleAvatar(
               radius: 55,
               backgroundColor: primaryBlue.withOpacity(0.1),
-              child: Icon(Icons.person, size: 60, color: primaryBlue),
+              backgroundImage: avatarUrl.isNotEmpty
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              child: avatarUrl.isEmpty
+                  ? Icon(Icons.person, size: 60, color: primaryBlue)
+                  : null,
             ),
             const SizedBox(height: 16),
             Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
