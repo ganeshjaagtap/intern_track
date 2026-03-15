@@ -1,6 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-// 🏢 SCREEN 1: THE COMPANY LIST (The Companies Tab)
 class PrincipalCompanyTab extends StatefulWidget {
   const PrincipalCompanyTab({super.key});
 
@@ -12,79 +12,20 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
   final TextEditingController _searchController = TextEditingController();
   String searchQuery = "";
 
-  // 📝 EXTENDED LOCAL DATA
-  final List<Map<String, dynamic>> dummyCompanies = [
-    {
-      "name": "Google",
-      "industry": "Tech & AI",
-      "email": "hr@google.com",
-      "website": "www.google.com",
-      "description":
-          "Google's mission is to organize the world's information and make it universally accessible and useful. We offer internship roles in Software Engineering, Data Science, and Product Management.",
-    },
-    {
-      "name": "Tesla",
-      "industry": "Automotive",
-      "email": "careers@tesla.com",
-      "website": "www.tesla.com",
-      "description":
-          "Accelerating the world's transition to sustainable energy through electric vehicles, solar, and integrated renewable energy solutions.",
-    },
-    {
-      "name": "Microsoft",
-      "industry": "Software",
-      "email": "recruitment@microsoft.com",
-      "website": "www.microsoft.com",
-      "description":
-          "Empowering every person and organization on the planet to achieve more. Join us for world-class mentorship and innovative projects.",
-    },
-    {
-      "name": "Amazon",
-      "industry": "E-Commerce",
-      "email": "jobs@amazon.com",
-      "website": "www.amazon.com",
-      "description":
-          "Customer obsession rather than competitor focus, passion for invention, commitment to operational excellence, and long-term thinking.",
-    },
-    {
-      "name": "Apple",
-      "industry": "Consumer Electronics",
-      "email": "internships@apple.com",
-      "website": "www.apple.com",
-      "description":
-          "At Apple, we don’t just build products — we create the kind of wonder that’s revolutionized entire industries. Join our hardware or software teams.",
-    },
-    {
-      "name": "Meta",
-      "industry": "Social Media & AI",
-      "email": "careers@meta.com",
-      "website": "www.meta.com",
-      "description":
-          "Building the future of social connection through virtual reality and artificial intelligence.",
-    },
-    {
-      "name": "Netflix",
-      "industry": "Entertainment",
-      "email": "talent@netflix.com",
-      "website": "www.netflix.com",
-      "description":
-          "Reinventing how people watch movies and TV shows through cutting-edge cloud engineering and algorithms.",
-    },
-  ];
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     const primaryBlue = Color(0xFF64A9F6);
 
-    final filteredCompanies = dummyCompanies.where((company) {
-      return company["name"].toString().toLowerCase().contains(searchQuery);
-    }).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       body: Column(
         children: [
-          // 📘 SEARCH HEADER (Exact Match to image_05fdf9.png)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(16, 40, 16, 30),
@@ -105,7 +46,7 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) =>
-                    setState(() => searchQuery = value.toLowerCase()),
+                    setState(() => searchQuery = value.trim().toLowerCase()),
                 decoration: const InputDecoration(
                   icon: Icon(Icons.search, color: Colors.grey),
                   hintText: "Search company...",
@@ -114,68 +55,169 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
               ),
             ),
           ),
-
-          // 🏢 LIST OF COMPANIES
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredCompanies.length,
-              itemBuilder: (context, index) {
-                final company = filteredCompanies[index];
-                final logoUrl =
-                    (company["logoUrl"] ?? company["companyLogoUrl"] ?? "").toString();
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance.collection("company").snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState("No companies found");
+                }
+
+                final companies = snapshot.data!.docs;
+                final filteredCompanies = companies.where((doc) {
+                  final data = doc.data();
+                  final name = (data["name"] ?? "").toString().toLowerCase();
+                  return name.contains(searchQuery);
+                }).toList();
+
+                if (filteredCompanies.isEmpty) {
+                  return _buildEmptyState("No companies match your search");
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredCompanies.length,
+                  itemBuilder: (context, index) {
+                    final company = filteredCompanies[index].data();
+                    final logoUrl =
+                        (company["logoUrl"] ?? company["companyLogoUrl"] ?? "")
+                            .toString();
+                    final experience = (company["experience"] ?? "N/A").toString();
+                    final internCount = company["internCount"] ?? 0;
+                    final courses = company["courses"] is List
+                        ? List.from(company["courses"] as List)
+                        : const [];
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: primaryBlue.withOpacity(0.1),
-                      backgroundImage:
-                          logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null,
-                      child: logoUrl.isEmpty
-                          ? const Icon(
-                              Icons.business_rounded,
-                              color: primaryBlue,
-                              size: 28,
-                            )
-                          : null,
-                    ),
-                    title: Text(
-                      company["name"],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PrincipalCompanyDetailsScreen(
+                                  companyData: company,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 28,
+                                      backgroundColor:
+                                          primaryBlue.withOpacity(0.1),
+                                      backgroundImage: logoUrl.isNotEmpty
+                                          ? NetworkImage(logoUrl)
+                                          : null,
+                                      child: logoUrl.isEmpty
+                                          ? const Icon(
+                                              Icons.business_rounded,
+                                              color: primaryBlue,
+                                              size: 30,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 15),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            (company["name"] ?? "Unknown Company")
+                                                .toString(),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            (company["industry"] ?? "Technology")
+                                                .toString(),
+                                            style: TextStyle(
+                                              color: primaryBlue,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ],
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Divider(height: 1),
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildSmallStat(
+                                      Icons.history,
+                                      "$experience Exp",
+                                    ),
+                                    _buildSmallStat(
+                                      Icons.people_outline,
+                                      "$internCount Interns",
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        "${courses.length} Courses",
+                                        style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    subtitle: Text(
-                      company["industry"],
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                      color: Colors.grey,
-                    ),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            PrincipalCompanyDetailsScreen(companyData: company),
-                      ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -184,9 +226,38 @@ class _PrincipalCompanyTabState extends State<PrincipalCompanyTab> {
       ),
     );
   }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 10),
+          Text(message, style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallStat(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade500),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-// 📄 SCREEN 2: THE DETAILS VIEW (Exact Match to image_05fe53.jpg)
 class PrincipalCompanyDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> companyData;
   const PrincipalCompanyDetailsScreen({super.key, required this.companyData});
@@ -215,7 +286,6 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 🟦 BLUE HEADER WITH LOGO
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(bottom: 40),
@@ -250,7 +320,7 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 15),
                   Text(
-                    companyData["name"],
+                    (companyData["name"] ?? "Unknown Company").toString(),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -258,13 +328,12 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    companyData["industry"],
+                    (companyData["industry"] ?? "Technology").toString(),
                     style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -283,7 +352,10 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      companyData["description"],
+                      (companyData["about"] ??
+                              companyData["description"] ??
+                              "No description available.")
+                          .toString(),
                       style: const TextStyle(
                         color: Colors.black87,
                         height: 1.5,
@@ -300,37 +372,14 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
                   _buildContactRow(
                     Icons.email_outlined,
                     "Email",
-                    companyData["email"],
+                    (companyData["email"] ?? "Not available").toString(),
                     primaryBlue,
                   ),
                   _buildContactRow(
                     Icons.language_outlined,
                     "Website",
-                    companyData["website"],
+                    (companyData["website"] ?? "Not available").toString(),
                     primaryBlue,
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {},
-                      child: const Text(
-                        "Contact Now",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -356,21 +405,23 @@ class PrincipalCompanyDetailsScreen extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-              ),
-            ],
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -20,6 +20,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _mentorIdController = TextEditingController();
+  final TextEditingController _deptController = TextEditingController();
   final TextEditingController _companyNameController = TextEditingController();
   final TextEditingController _designationController = TextEditingController();
   final TextEditingController _companyAddressController =
@@ -46,6 +47,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _mentorIdController.dispose();
+    _deptController.dispose();
     _companyNameController.dispose();
     _designationController.dispose();
     _companyAddressController.dispose();
@@ -86,6 +88,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _phoneController.text =
           (data["phoneNumber"] ?? data["phone"] ?? "").toString();
       _mentorIdController.text = (data["mentorId"] ?? "").toString();
+      _deptController.text = (data["dept"] ?? "").toString();
       _companyNameController.text = (data["company_name"] ?? "").toString();
       _designationController.text = (data["designation"] ?? "").toString();
       _companyAddressController.text =
@@ -137,6 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         "fullName": _fullNameController.text.trim(),
         "phoneNumber": _phoneController.text.trim(),
         "mentorId": _mentorIdController.text.trim(),
+        "dept": _deptController.text.trim(),
         "company_name": _companyNameController.text.trim(),
         "designation": _designationController.text.trim(),
         "company_address": _companyAddressController.text.trim(),
@@ -390,6 +394,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           controller: _mentorIdController,
                           label: "Mentor ID",
                           icon: Icons.badge_outlined,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildField(
+                          controller: _deptController,
+                          label: "Department",
+                          icon: Icons.account_tree_outlined,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return "Enter department";
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                         _buildField(

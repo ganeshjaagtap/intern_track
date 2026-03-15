@@ -27,6 +27,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Controllers
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController enrollmentNoController = TextEditingController();
+  final TextEditingController deptController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController companyController = TextEditingController();
@@ -60,6 +61,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     fullNameController.dispose();
     enrollmentNoController.dispose();
+    deptController.dispose();
     emailController.dispose();
     phoneController.dispose();
     companyController.dispose();
@@ -86,6 +88,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() {
             fullNameController.text = data['fullName'] ?? '';
             enrollmentNoController.text = data['enrollmentNo'] ?? '';
+            deptController.text = data['dept'] ?? '';
             emailController.text = data['email'] ?? '';
             phoneController.text = data['phoneNumber'] ?? '';
             companyController.text = data['company'] ?? '';
@@ -138,6 +141,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             .update({
           'fullName': fullNameController.text.trim(),
           'enrollmentNo': enrollmentNoController.text.trim(),
+          'dept': deptController.text.trim(),
           'email': emailController.text.trim(),
           'phoneNumber': phoneController.text.trim(),
           'year': selectedYear,
@@ -372,6 +376,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         value: selectedYear,
                         items: years,
                         onChanged: (val) => setState(() => selectedYear = val),
+                      ),
+                      const SizedBox(height: 14),
+                      _inputField(
+                        controller: deptController,
+                        label: "Department",
+                        icon: Icons.account_tree_outlined,
                       ),
                       const SizedBox(height: 14),
                       _inputField(

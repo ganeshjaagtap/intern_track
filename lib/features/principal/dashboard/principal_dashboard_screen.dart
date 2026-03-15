@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../students/principal_students_screen.dart';
 import '../departments/d_screens/principal_departments_screen.dart';
@@ -24,6 +25,52 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
   final Color strawberry = const Color(0xFFF35252);
   final Color aquamarine = const Color(0xFF5EF2D5);
   final Color coolSky = const Color(0xFF60B5FF);
+
+  static const Map<String, String> _departmentAliases = {
+    'it': 'IT Department',
+    'information technology': 'IT Department',
+    'information tech': 'IT Department',
+    'information tech.': 'IT Department',
+    'cse': 'Computer Science',
+    'computer science': 'Computer Science',
+    'computer engineering': 'Computer Science',
+    'computer': 'Computer Science',
+    'cs': 'Computer Science',
+    'me': 'Mechanical Engineering',
+    'mechanical': 'Mechanical Engineering',
+    'mechanical engineering': 'Mechanical Engineering',
+    'civil': 'Civil Engineering',
+    'ce': 'Civil Engineering',
+    'civil engineering': 'Civil Engineering',
+    'ee': 'Electrical Engineering',
+    'electrical': 'Electrical Engineering',
+    'electrical engineering': 'Electrical Engineering',
+    'eee': 'Electrical Engineering',
+    'electronics': 'Electronics Engineering',
+    'electronics engineering': 'Electronics Engineering',
+    'entc': 'Electronics Engineering',
+    'e&tc': 'Electronics Engineering',
+    'extc': 'Electronics Engineering',
+    'automobile': 'Automobile Engineering',
+    'automobile engineering': 'Automobile Engineering',
+    'chemical': 'Chemical Engineering',
+    'chemical engineering': 'Chemical Engineering',
+    'instrumentation': 'Instrumentation Engineering',
+    'instrumentation engineering': 'Instrumentation Engineering',
+  };
+
+  static const List<String> _departmentOrder = [
+    'IT Department',
+    'Computer Science',
+    'Mechanical Engineering',
+    'Civil Engineering',
+    'Electrical Engineering',
+    'Electronics Engineering',
+    'Automobile Engineering',
+    'Chemical Engineering',
+    'Instrumentation Engineering',
+    'Others',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -148,17 +195,14 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildPieChartSection("85% Completion Rate", 0.85, aquamarine),
+          _buildOverallInternshipCompletionSection(),
           const SizedBox(height: 32),
           const Text(
             "Departmental Progress",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildBarGraph("Information Tech.", 0.92, coolSky),
-          _buildBarGraph("Computer Engineering", 0.80, jasmine),
-          _buildBarGraph("Mechanical Engineering", 0.65, tangerine),
-          _buildBarGraph("Civil Engineering", 0.40, strawberry),
+          _buildDepartmentProgressSection(),
           const SizedBox(height: 110),
         ],
       ),
@@ -318,6 +362,231 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
     );
   }
 
+  Widget _buildOverallInternshipCompletionSection() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .where('role', isEqualTo: 'student')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _buildPieChartSection(
+            "Unable to load completion data",
+            0,
+            aquamarine,
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? const [];
+        final totalStudents = docs.length;
+        final completedStudents = docs.where((doc) {
+          final status = doc.data()['internshipStatus']?.toString() ?? '';
+          return _isCompletedStatus(status);
+        }).length;
+
+        final completionRate = totalStudents == 0
+            ? 0.0
+            : completedStudents / totalStudents;
+
+        return _buildPieChartSection(
+          "$completedStudents/$totalStudents Students Completed",
+          completionRate,
+          aquamarine,
+        );
+      },
+    );
+  }
+
+  Widget _buildDepartmentProgressSection() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('user')
+          .where('role', isEqualTo: 'student')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              "Unable to load department progress right now.",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? const [];
+        if (docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              "No student data available yet.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        final progressByDept = <String, _DepartmentProgress>{};
+
+        for (final doc in docs) {
+          final data = doc.data();
+          final department = _normalizeDept(data['dept']?.toString());
+          final status = data['internshipStatus']?.toString() ?? '';
+
+          final current = progressByDept.putIfAbsent(
+            department,
+            () => const _DepartmentProgress(total: 0, activeOrCompleted: 0),
+          );
+
+          progressByDept[department] = _DepartmentProgress(
+            total: current.total + 1,
+            activeOrCompleted: current.activeOrCompleted +
+                (_isPursuingOrCompletedStatus(status) ? 1 : 0),
+          );
+        }
+
+        final entries = progressByDept.entries.toList()
+          ..sort((a, b) {
+            final indexA = _departmentOrder.indexOf(a.key);
+            final indexB = _departmentOrder.indexOf(b.key);
+            final safeA = indexA == -1 ? _departmentOrder.length : indexA;
+            final safeB = indexB == -1 ? _departmentOrder.length : indexB;
+            return safeA.compareTo(safeB);
+          });
+
+        return Column(
+          children: List.generate(entries.length, (index) {
+            final entry = entries[index];
+            final progress = entry.value.total == 0
+                ? 0.0
+                : entry.value.activeOrCompleted / entry.value.total;
+
+            return _buildDepartmentProgressCard(
+              label: entry.key,
+              progress: progress,
+              activeOrCompleted: entry.value.activeOrCompleted,
+              total: entry.value.total,
+              color: _progressColorForIndex(index),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildDepartmentProgressCard({
+    required String label,
+    required double progress,
+    required int activeOrCompleted,
+    required int total,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                "${(progress * 100).toStringAsFixed(0)}%",
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 14,
+              color: color,
+              backgroundColor: Colors.grey[200],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "$activeOrCompleted/$total Students Pursuing or Completed",
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _normalizeDept(String? dept) {
+    if (dept == null) {
+      return 'Others';
+    }
+
+    final normalized = dept.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return 'Others';
+    }
+
+    return _departmentAliases[normalized] ?? 'Others';
+  }
+
+  bool _isCompletedStatus(String status) {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'completed' || normalized == 'complete';
+  }
+
+  bool _isPursuingOrCompletedStatus(String status) {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'completed' ||
+        normalized == 'complete' ||
+        normalized == 'ongoing' ||
+        normalized == 'pursuing' ||
+        normalized == 'active' ||
+        normalized == 'in progress' ||
+        normalized == 'inprogress';
+  }
+
+  Color _progressColorForIndex(int index) {
+    const palette = <Color>[
+      Color(0xFF60B5FF),
+      Color(0xFFFFE588),
+      Color(0xFFF79D65),
+      Color(0xFFF35252),
+      Color(0xFF5EF2D5),
+      Color(0xFF7A9E9F),
+      Color(0xFFB692FE),
+      Color(0xFFFF9F9F),
+      Color(0xFF8CC084),
+      Color(0xFF9E9E9E),
+    ];
+
+    return palette[index % palette.length];
+  }
+
   Widget _buildBottomNavBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -368,4 +637,14 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
       ),
     );
   }
+}
+
+class _DepartmentProgress {
+  final int total;
+  final int activeOrCompleted;
+
+  const _DepartmentProgress({
+    required this.total,
+    required this.activeOrCompleted,
+  });
 }

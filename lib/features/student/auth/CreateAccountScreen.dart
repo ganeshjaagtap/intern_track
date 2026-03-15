@@ -73,9 +73,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
     final customId = idController.text.trim();
+    final department = deptController.text.trim();
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       _showSnackBar("Please fill in all basic fields.");
+      return;
+    }
+
+    if (department.isEmpty) {
+      _showSnackBar("Please provide your department.");
       return;
     }
 
@@ -115,16 +121,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         if (selectedRole == 'Student') {
           userData['enrollmentNo'] = enrollmentController.text.trim();
           userData['college'] = collegeController.text.trim();
-          userData['dept'] = 'IT';
+          userData['dept'] = department;
           userData['internshipStatus'] = 'Pending';
         } else if (selectedRole == 'Company Mentor') {
           userData['mentorId'] = customId; // Saving the ID
           userData['company_name'] = companyController.text.trim();
           userData['designation'] = designationController.text.trim();
+          userData['dept'] = department;
           userData['total_students'] = 0;
         } else if (selectedRole == 'Faculty') {
           userData['facultyId'] = customId; // Saving the ID
-          userData['dept'] = deptController.text.trim();
+          userData['dept'] = department;
           userData['college'] = collegeController.text.trim();
         }
 
@@ -219,6 +226,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             const SizedBox(height: 16),
                             _buildTextField(collegeController, "College Name", Icons.account_balance),
                             const SizedBox(height: 16),
+                            _buildTextField(deptController, "Department (e.g., IT, CSE)", Icons.domain),
+                            const SizedBox(height: 16),
                           ],
                           if (selectedRole == 'Faculty') ...[
                             // NEW: Faculty ID Field
@@ -236,6 +245,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             _buildTextField(companyController, "Company Name", Icons.business),
                             const SizedBox(height: 16),
                             _buildTextField(designationController, "Your Designation", Icons.work),
+                            const SizedBox(height: 16),
+                            _buildTextField(deptController, "Department (e.g., IT, Mechanical)", Icons.domain),
                             const SizedBox(height: 16),
                           ],
                         ],

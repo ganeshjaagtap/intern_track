@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class PrincipalEditProfileScreen extends StatefulWidget {
   const PrincipalEditProfileScreen({super.key});
@@ -11,31 +11,129 @@ class PrincipalEditProfileScreen extends StatefulWidget {
 }
 
 class _PrincipalEditProfileScreenState extends State<PrincipalEditProfileScreen> {
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _employeeIdController = TextEditingController();
+  final TextEditingController _deptController = TextEditingController();
+
   String _profileImageUrl = "";
+  bool _isLoading = true;
+  bool _isSaving = false;
 
   final Color coolSky = const Color(0xFF60B5FF);
 
   @override
   void initState() {
     super.initState();
-    _loadProfileImage();
+    _loadProfile();
   }
 
-  Future<void> _loadProfileImage() async {
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _employeeIdController.dispose();
+    _deptController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('user')
-        .doc(currentUser.uid)
-        .get();
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('user')
+          .doc(currentUser.uid)
+          .get();
 
-    if (!mounted) return;
+      final data = userDoc.data() as Map<String, dynamic>? ?? {};
+      if (!mounted) {
+        return;
+      }
 
-    final data = userDoc.data() as Map<String, dynamic>? ?? {};
-    setState(() {
-      _profileImageUrl = (data['profileImageUrl'] ?? '').toString();
-    });
+      setState(() {
+        _profileImageUrl = (data['profileImageUrl'] ?? '').toString();
+        _fullNameController.text =
+            (data['fullName'] ?? data['name'] ?? '').toString();
+        _emailController.text =
+            (data['email'] ?? currentUser.email ?? '').toString();
+        _phoneController.text =
+            (data['phoneNumber'] ?? data['phone'] ?? '').toString();
+        _employeeIdController.text =
+            (data['principalId'] ?? data['employeeId'] ?? '').toString();
+        _deptController.text = (data['dept'] ?? '').toString();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load profile: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('user')
+          .doc(currentUser.uid)
+          .set({
+        'fullName': _fullNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'principalId': _employeeIdController.text.trim(),
+        'dept': _deptController.text.trim(),
+        'profileImageUrl': _profileImageUrl,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Profile updated successfully"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to update profile: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -53,101 +151,131 @@ class _PrincipalEditProfileScreenState extends State<PrincipalEditProfileScreen>
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Profile Picture with Camera Icon (Matching Image 1)
-            Center(
-              child: Stack(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Color(
-                      0xFFF35252,
-                    ), // Strawberry color from your palette
-                    backgroundImage: _profileImageUrl.isNotEmpty
-                        ? NetworkImage(_profileImageUrl)
-                        : null,
-                    child: _profileImageUrl.isEmpty
-                        ? const Icon(Icons.person, size: 70, color: Colors.white)
-                        : null,
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundColor: const Color(0xFFF35252),
+                          backgroundImage: _profileImageUrl.isNotEmpty
+                              ? NetworkImage(_profileImageUrl)
+                              : null,
+                          child: _profileImageUrl.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 70,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: coolSky,
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: coolSky,
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 18,
-                        color: Colors.white,
+                  const SizedBox(height: 30),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                          controller: _fullNameController,
+                          icon: Icons.person_outline,
+                          label: "Full Name",
+                        ),
+                        _buildTextField(
+                          controller: _emailController,
+                          icon: Icons.email_outlined,
+                          label: "Email",
+                          readOnly: true,
+                        ),
+                        _buildTextField(
+                          controller: _phoneController,
+                          icon: Icons.phone_outlined,
+                          label: "Phone Number",
+                        ),
+                        _buildTextField(
+                          controller: _employeeIdController,
+                          icon: Icons.badge_outlined,
+                          label: "Employee ID",
+                        ),
+                        _buildTextField(
+                          controller: _deptController,
+                          icon: Icons.apartment_outlined,
+                          label: "Department",
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: coolSky,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: _isSaving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.save, color: Colors.black),
+                      label: Text(
+                        _isSaving ? "Saving..." : "Save Changes",
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-
-            // Form Fields Container
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                children: [
-                  _buildTextField(Icons.person_outline, "Full Name"),
-                  _buildTextField(Icons.email_outlined, "Email"),
-                  _buildTextField(Icons.phone_outlined, "Phone Number"),
-                  _buildTextField(
-                    Icons.badge_outlined,
-                    "Employee ID",
-                  ), // Replaced Roll Number
-                  _buildTextField(
-                    Icons.apartment_outlined,
-                    "Office/Department",
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: coolSky,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.save, color: Colors.black),
-                label: const Text(
-                  "Save Changes",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildTextField(IconData icon, String label) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required IconData icon,
+    required String label,
+    bool readOnly = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
+        controller: controller,
+        readOnly: readOnly,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.grey),
           labelText: label,
