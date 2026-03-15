@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for role check
-import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
-import 'package:flutter_application_2/features/HOD/layout/hod_main_layout.dart';
-import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
-import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
-import 'package:flutter_application_2/features/principal/dashboard/principal_dashboard_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_2/core/notifications/push_notification_service.dart';
 import 'package:flutter_application_2/core/utils/mentor_emails.dart';
-import 'firebase_options.dart';
+import 'package:flutter_application_2/features/HOD/layout/hod_main_layout.dart';
+import 'package:flutter_application_2/features/company_mentor/dashboard/CompanyMentorDashboardScreen.dart';
+import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
+import 'package:flutter_application_2/features/principal/dashboard/principal_dashboard_screen.dart';
 import 'package:flutter_application_2/features/student/auth/Main_Login.dart';
+import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
+
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await PushNotificationService.instance.initialize();
   runApp(const MyApp());
 }
 
@@ -34,48 +37,51 @@ class MyApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // 1. Wait for Firebase Auth to initialize
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
 
-          final User? user = snapshot.data;
-
-          // 2. If no user is logged in, send to Login Screen
+          final user = snapshot.data;
           if (user == null) {
             return const LoginScreen();
           }
 
-          // 3. User is logged in, now fetch their role from Firestore
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance.collection('user').doc(user.uid).get(),
             builder: (context, roleSnapshot) {
               if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               }
 
               if (roleSnapshot.hasData && roleSnapshot.data!.exists) {
                 final data = roleSnapshot.data!.data() as Map<String, dynamic>;
-                final String role =
+                final role =
                     (data['role'] ?? 'student').toString().trim().toLowerCase();
-                final String email = (user.email ?? '').trim().toLowerCase();
+                final email = (user.email ?? '').trim().toLowerCase();
 
                 if (mentorEmails.contains(email) || role == 'hod') {
                   return const HodMainLayout();
-                } else if (role == 'mentor') {
+                }
+                if (role == 'mentor') {
                   return const CompanyMentorDashboardScreen();
-                } else if (role == 'faculty') {
+                }
+                if (role == 'faculty') {
                   return const FacultyDashboardScreen();
-                } else if (role == 'principal') {
+                }
+                if (role == 'principal') {
                   return const PrincipalDashboardScreen();
-                } else if (role == 'student') {
+                }
+                if (role == 'student') {
                   return const StudentMainScreen();
                 }
 
                 return const LoginScreen();
               }
 
-              // 4. Fallback: If document doesn't exist, log them out and show login
               return const LoginScreen();
             },
           );

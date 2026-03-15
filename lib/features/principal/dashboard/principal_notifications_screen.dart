@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class PrincipalNotificationsScreen extends StatefulWidget {
@@ -10,33 +12,67 @@ class PrincipalNotificationsScreen extends StatefulWidget {
 
 class _PrincipalNotificationsScreenState
     extends State<PrincipalNotificationsScreen> {
-  // 📝 LOCAL STATE: This stores your notifications temporarily
-  final List<Map<String, String>> _allNotifications = [
-    {"title": "Welcome", "desc": "System is ready.", "type": "Alert"},
-  ];
-
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  String _selectedType = "Alert";
+  String _selectedType = 'alert';
 
-  // Function to add the new notification to the list
-  void _handlePublish() {
-    if (_titleController.text.isNotEmpty && _descController.text.isNotEmpty) {
-      setState(() {
-        _allNotifications.add({
-          "title": _titleController.text,
-          "desc": _descController.text,
-          "type": _selectedType,
-        });
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handlePublish() async {
+    if (_titleController.text.trim().isEmpty ||
+        _descController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter title and description')),
+      );
+      return;
+    }
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      String senderName = 'Principal';
+
+      if (currentUser != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('user')
+            .doc(currentUser.uid)
+            .get();
+        final userData = userDoc.data() ?? <String, dynamic>{};
+        senderName =
+            (userData['fullName'] ?? userData['name'] ?? 'Principal').toString();
+      }
+
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': _titleController.text.trim(),
+        'desc': _descController.text.trim(),
+        'type': _selectedType,
+        'senderName': senderName,
+        'senderRole': 'Principal',
+        'senderId': currentUser?.uid ?? '',
+        'target': 'all',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Clear fields and switch to the relevant tab
       _titleController.clear();
       _descController.clear();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Published to $_selectedType")));
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification published')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Publish failed: $e')),
+      );
     }
   }
 
@@ -54,7 +90,7 @@ class _PrincipalNotificationsScreenState
             onPressed: () => Navigator.pop(context),
           ),
           title: const Text(
-            "Notifications",
+            'Notifications',
             style: TextStyle(color: Colors.black),
           ),
           bottom: const TabBar(
@@ -62,19 +98,16 @@ class _PrincipalNotificationsScreenState
             unselectedLabelColor: Colors.grey,
             indicatorColor: Color(0xFF64A9F6),
             tabs: [
-              Tab(text: "Alerts"),
-              Tab(text: "Notices"),
-              Tab(text: "Publish"),
+              Tab(text: 'Alerts'),
+              Tab(text: 'Notices'),
+              Tab(text: 'Publish'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            // Alerts Tab: Filters local list for 'Alert'
-            _buildFilteredList("Alert", Icons.notifications),
-            // Notices Tab: Filters local list for 'Notice'
-            _buildFilteredList("Notice", Icons.campaign),
-            // Publish Tab
+            _buildFilteredList('alert', Icons.notifications),
+            _buildFilteredList('notice', Icons.campaign),
             _buildPublishTab(),
           ],
         ),
@@ -83,29 +116,44 @@ class _PrincipalNotificationsScreenState
   }
 
   Widget _buildFilteredList(String type, IconData icon) {
-    final filtered = _allNotifications.where((n) => n["type"] == type).toList();
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('type', isEqualTo: type)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return filtered.isEmpty
-        ? const Center(child: Text("No items yet"))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: ListTile(
-                  leading: Icon(icon, color: Colors.black87),
-                  title: Text(filtered[index]["title"]!),
-                  subtitle: Text(filtered[index]["desc"]!),
-                ),
-              );
-            },
-          );
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const Center(child: Text('No items yet'));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: ListTile(
+                leading: Icon(icon, color: Colors.black87),
+                title: Text((data['title'] ?? '').toString()),
+                subtitle: Text((data['desc'] ?? '').toString()),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildPublishTab() {
@@ -115,23 +163,23 @@ class _PrincipalNotificationsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Notification Type",
+            'Notification Type',
             style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
           DropdownButton<String>(
             value: _selectedType,
             isExpanded: true,
             items: const [
-              DropdownMenuItem(value: "Alert", child: Text("Alert")),
-              DropdownMenuItem(value: "Notice", child: Text("Notice")),
+              DropdownMenuItem(value: 'alert', child: Text('Alert')),
+              DropdownMenuItem(value: 'notice', child: Text('Notice')),
             ],
-            onChanged: (val) => setState(() => _selectedType = val!),
+            onChanged: (val) => setState(() => _selectedType = val ?? 'alert'),
           ),
           const SizedBox(height: 25),
           TextField(
             controller: _titleController,
             decoration: const InputDecoration(
-              labelText: "Title",
+              labelText: 'Title',
               border: OutlineInputBorder(),
             ),
           ),
@@ -140,7 +188,7 @@ class _PrincipalNotificationsScreenState
             controller: _descController,
             maxLines: 4,
             decoration: const InputDecoration(
-              labelText: "Description",
+              labelText: 'Description',
               border: OutlineInputBorder(),
             ),
           ),
@@ -155,7 +203,7 @@ class _PrincipalNotificationsScreenState
                   borderRadius: BorderRadius.circular(25),
                 ),
               ),
-              child: const Text("Publish Notification"),
+              child: const Text('Publish Notification'),
             ),
           ),
         ],

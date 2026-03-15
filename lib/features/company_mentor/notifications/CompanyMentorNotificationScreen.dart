@@ -312,10 +312,12 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
   String selectedType = "alert";
   bool isEditing = false;
   bool isProcessing = false;
+  late final String? currentMentorId;
 
   @override
   void initState() {
     super.initState();
+    currentMentorId = FirebaseAuth.instance.currentUser?.uid;
     titleController = TextEditingController(text: widget.data["title"]);
     descController = TextEditingController(text: widget.data["desc"]);
     selectedType = widget.data["type"] ?? "alert";
@@ -330,6 +332,16 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
 
   /// UPDATE NOTIFICATION
   Future<void> updateNotification() async {
+    if (!_canManageNotification()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("You can edit only your own notifications."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => isProcessing = true);
 
     try {
@@ -360,6 +372,16 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
 
   /// DELETE NOTIFICATION
   Future<void> deleteNotification() async {
+    if (!_canManageNotification()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("You can delete only your own notifications."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Show confirmation dialog before deleting
     bool confirm = await showDialog(
       context: context,
@@ -402,6 +424,7 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
 
   @override
   Widget build(BuildContext context) {
+    final canManage = _canManageNotification();
     Timestamp? ts = widget.data["createdAt"] as Timestamp?;
     String time = "Pending/Just now";
 
@@ -415,7 +438,7 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
         backgroundColor: const Color(0xFF5F9ED6),
         title: Text(isEditing ? "Edit Notification" : "Notification Details"),
         actions: [
-          if (!isEditing)
+          if (!isEditing && canManage)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () {
@@ -424,10 +447,11 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
                 });
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: deleteNotification,
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: deleteNotification,
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -570,5 +594,10 @@ class _MentorNotificationDetailsScreenState extends State<MentorNotificationDeta
         ),
       ),
     );
+  }
+
+  bool _canManageNotification() {
+    return currentMentorId != null &&
+        widget.data["senderId"]?.toString() == currentMentorId;
   }
 }

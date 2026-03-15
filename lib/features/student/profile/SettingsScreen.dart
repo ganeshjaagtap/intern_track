@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../auth/Main_Login.dart';
 import 'EditProfileScreen.dart';
@@ -16,22 +13,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  File? profileImage;
-  final ImagePicker _picker = ImagePicker();
-
-  Future<void> _pickProfileImage() async {
-    final XFile? picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 75,
-    );
-
-    if (picked != null) {
-      setState(() {
-        profileImage = File(picked.path);
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -69,47 +50,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const SizedBox(height: 12),
                 Center(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      GestureDetector(
-                        onTap: _pickProfileImage,
-                        child: CircleAvatar(
-                          radius: 52,
-                          backgroundColor: const Color(0xFF6BB6FF),
-                          backgroundImage:
-                              profileImage != null
-                                  ? FileImage(profileImage!)
-                                  : (imageUrl.isNotEmpty
-                                      ? NetworkImage(imageUrl)
-                                      : null),
-                          child: profileImage == null && imageUrl.isEmpty
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 16,
+                  child: CircleAvatar(
+                    radius: 52,
+                    backgroundColor: const Color(0xFF6BB6FF),
+                    backgroundImage: imageUrl.isNotEmpty 
+                        ? NetworkImage(imageUrl) 
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? const Icon(
+                            Icons.person,
+                            size: 50,
                             color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(height: 18),
