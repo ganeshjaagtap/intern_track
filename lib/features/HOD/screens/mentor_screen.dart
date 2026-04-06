@@ -159,6 +159,7 @@ class _MentorScreenState extends State<MentorScreen> {
 
                         Map<String, String> mentor = {
 
+                          "docId": filteredMentors[index].id,
                           "name": data['fullName']?.toString() ?? "",
                           "id": data['facultyId']?.toString() ?? "",
                           "dept": data['dept']?.toString() ?? "",

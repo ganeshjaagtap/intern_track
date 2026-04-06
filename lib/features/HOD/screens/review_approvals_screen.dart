@@ -29,11 +29,48 @@ class _ReviewApprovalsScreenState extends State<ReviewApprovalsScreen>
   }
 
   /// ---------------- APPROVE USER ----------------
-  Future<void> approveUser(String uid, String name) async {
+  Future<void> approveUser(
+    String uid,
+    String name,
+    String role,
+    Map<String, dynamic> userData,
+  ) async {
+    String? facultyMentorId;
+
+    if (role == 'student') {
+      final studentDept = (userData['dept'] ?? '').toString().trim();
+      facultyMentorId = await _showFacultyMentorSelectionDialog(
+        name: name,
+        dept: studentDept,
+      );
+      if (facultyMentorId == null) {
+        return;
+      }
+    }
+
     try {
-      await FirebaseFirestore.instance.collection('user').doc(uid).update({
+      final updateData = <String, dynamic>{
         'isApproved': true,
-      });
+      };
+
+      if (role == 'student') {
+        if (facultyMentorId == null || facultyMentorId.trim().isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Faculty Mentor ID is required."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        updateData['facultyId'] = facultyMentorId.trim();
+        updateData['internshipStatus'] = 'Ongoing';
+      }
+
+      await FirebaseFirestore.instance.collection('user').doc(uid).update(updateData);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("$name Approved!"), backgroundColor: Colors.green),
@@ -42,6 +79,131 @@ class _ReviewApprovalsScreenState extends State<ReviewApprovalsScreen>
     } catch (e) {
       print("Error approving user: $e");
     }
+  }
+
+  Future<String?> _showFacultyMentorSelectionDialog({
+    required String name,
+    required String dept,
+  }) async {
+    if (dept.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Student department is missing."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return null;
+    }
+
+    final mentorsSnapshot = await FirebaseFirestore.instance
+        .collection('user')
+        .where('role', isEqualTo: 'faculty')
+        .where('dept', isEqualTo: dept)
+        .where('isApproved', isEqualTo: true)
+        .get();
+
+    final mentors = mentorsSnapshot.docs
+        .where((doc) {
+          final data = doc.data();
+          final facultyId = (data['facultyId'] ?? '').toString().trim();
+          return facultyId.isNotEmpty;
+        })
+        .map((doc) {
+          final data = doc.data();
+          return {
+            'facultyId': (data['facultyId'] ?? '').toString().trim(),
+            'name': (data['fullName'] ?? data['name'] ?? 'Faculty').toString(),
+          };
+        })
+        .toList();
+
+    if (mentors.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("No mentors found for $dept department."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return null;
+    }
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        String? selectedFacultyId = mentors.first['facultyId'];
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Assign Faculty Mentor"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Select faculty mentor for $name"),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Department: $dept",
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedFacultyId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: "Faculty Mentor",
+                      border: OutlineInputBorder(),
+                    ),
+                    items: mentors.map((mentor) {
+                      final facultyId = mentor['facultyId'] ?? '';
+                      final mentorName = mentor['name'] ?? 'Faculty';
+                      return DropdownMenuItem<String>(
+                        value: facultyId,
+                        child: Text("$mentorName ($facultyId)"),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedFacultyId = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final value = selectedFacultyId?.trim() ?? '';
+                    if (value.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Please select a faculty mentor."),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, value);
+                  },
+                  child: const Text("Confirm"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result;
   }
 
   /// ---------------- REJECT USER ----------------
@@ -172,7 +334,7 @@ class _ReviewApprovalsScreenState extends State<ReviewApprovalsScreen>
                   children: [
                     IconButton(
                       icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
-                      onPressed: () => approveUser(uid, name),
+                      onPressed: () => approveUser(uid, name, targetRole, data),
                     ),
                     IconButton(
                       icon: const Icon(Icons.cancel, color: Colors.red, size: 28),

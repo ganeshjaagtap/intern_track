@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ADDED THIS
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter_application_2/features/faculty/attendance/faculty_attendance_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/bottom_nav_bar.dart';
@@ -10,7 +10,6 @@ import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty
 import 'package:flutter_application_2/features/faculty/dashboard/screens/student_list.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_student_list_screen.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/widgets/Faculty_action_card.dart';
-import 'package:flutter_application_2/features/faculty/dashboard/widgets/faculty_stats_card.dart';
 import 'package:flutter_application_2/features/faculty/calendar/faculty_calendar_screen.dart';
 import 'package:flutter_application_2/features/faculty/groups/groups_screen.dart';
 import 'package:flutter_application_2/features/faculty/profile/screens/faculty_profile_screen.dart';
@@ -20,8 +19,7 @@ class FacultyDashboardScreen extends StatefulWidget {
   const FacultyDashboardScreen({super.key});
 
   @override
-  State<FacultyDashboardScreen> createState() =>
-      _FacultyDashboardScreenState();
+  State<FacultyDashboardScreen> createState() => _FacultyDashboardScreenState();
 }
 
 class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
@@ -51,10 +49,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
           final data = doc.data() as Map<String, dynamic>;
           if (mounted) {
             setState(() {
-              // Safely pull data, use empty strings as fallbacks
               facultyName = data["fullName"] ?? "Faculty";
-              facultyId =
-                  (data["facultyId"] ?? data["uid"] ?? user.uid).toString();
+              facultyId = (data["facultyId"] ?? data["uid"] ?? user.uid).toString();
               department = data["dept"] ?? "";
               college = data["college"] ?? "";
               isLoading = false;
@@ -65,7 +61,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         if (mounted) setState(() => isLoading = false);
       }
     } catch (e) {
-      print("Error loading faculty data: $e");
+      debugPrint("Error loading faculty data: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
@@ -83,7 +79,8 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
       case 2:
         return const FacultyAttendanceScreen();
       case 3:
-        return const FacultySettingsScreen(); // Changed to match your import, make sure the name matches the actual class!
+        // ✅ FIXED: Removed 'const' keyword to resolve "Not a constant expression" error
+        return const FacultySettingsScreen();
       default:
         return _buildDashboardContent();
     }
@@ -102,7 +99,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
 
   Widget _buildDashboardContent() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor: const Color(0xFFF8F9FA),
 
       /// APPBAR
       appBar: AppBar(
@@ -111,37 +108,22 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         elevation: 0,
         title: const Text(
           "INTERN TRACKER",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          /// 🔔 REALTIME NOTIFICATION BADGE
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection("notifications")
-                .snapshots(),
+            stream: FirebaseFirestore.instance.collection("notifications").snapshots(),
             builder: (context, snapshot) {
-              int count = 0;
-
-              if (snapshot.hasData) {
-                count = snapshot.data!.docs.length;
-              }
-
+              int count = snapshot.hasData ? snapshot.data!.docs.length : 0;
               return Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const FacultyNotificationScreen(),
-                        ),
-                      );
-                    },
+                    icon: const Icon(Icons.notifications_none, color: Colors.white),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const FacultyNotificationScreen()),
+                    ),
                   ),
-
-                  /// 🔴 BADGE
                   if (count > 0)
                     Positioned(
                       right: 12,
@@ -149,10 +131,7 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                       ),
                     ),
                 ],
@@ -162,281 +141,215 @@ class _FacultyDashboardScreenState extends State<FacultyDashboardScreen> {
         ],
       ),
 
-      /// BODY
-      body: isLoading 
+      body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.blue))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// DYNAMIC WELCOME MESSAGE
                   Text(
                     "Welcome back, $facultyName!",
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  /// MISSING PROFILE WARNING (Only shows if fields are empty)
-                  if (department.isEmpty || college.isEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              "Please go to Settings to complete your profile.",
-                              style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-
-                  /// STATS
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const StudentListScreen(),
-                              ),
-                            );
-                          },
-                          child: MiniStatCard(
-                            icon: Icons.group,
-                            value: "42",
-                            label: "Students",
-                            bg: const Color(0xFFD9ECFF),
-                            iconColor: Colors.blue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const CompaniesScreen(),
-                              ),
-                            );
-                          },
-                          child: MiniStatCard(
-                            icon: Icons.work,
-                            value: "5",
-                            label: "Internships",
-                            bg: const Color(0xFFFFF2CC),
-                            iconColor: Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const FacultyStudentListScreen(),
-                              ),
-                            );
-                          },
-                          child: MiniStatCard(
-                            icon: Icons.assignment,
-                            value: "18",
-                            label: "Reports",
-                            bg: const Color(0xFFFFE6D9),
-                            iconColor: Colors.deepOrange,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection("faculty_events")
-                              .where("facultyId", isEqualTo: facultyId)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            int upcomingCount = 0;
-
-                            if (snapshot.hasData) {
-                              final now = DateTime.now();
-                              upcomingCount = snapshot.data!.docs.where((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final dateValue = data["dateTime"];
-                                if (dateValue is Timestamp) {
-                                  return dateValue.toDate().isAfter(now);
-                                }
-                                return false;
-                              }).length;
-                            }
-
-                            return MiniStatCard(
-                              icon: Icons.event,
-                              value: upcomingCount.toString(),
-                              label: "Events",
-                              bg: const Color(0xFFDFF5EA),
-                              iconColor: Colors.green,
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    "Mentor Coordination",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  FacultyActionCard(
-                    icon: Icons.person,
-                    title: "View Mentors",
-                    subtitle: "Manage assigned mentors",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const FacultyCompanyMentorsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  FacultyActionCard(
-                    icon: Icons.calendar_month,
-                    title: "Manage Events",
-                    subtitle: "Open faculty calendar and reminders",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const FacultyCalendarScreen(showBackButton: true),
-                        ),
-                      );
-                    },
-                  ),
-
                   const SizedBox(height: 20),
 
-                  /// ASSIGN TASK CARD
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
+                  /// PROFILE WARNING
+                  if (department.isEmpty || college.isEmpty) ...[
+                    _buildWarningCard(),
+                    const SizedBox(height: 20),
+                  ],
+
+                  const Text(
+                    "Overview",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 15),
+
+                  /// 4-TAB GRID (Student Style)
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.45,
+                    children: [
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection("user")
+                            .where("role", isEqualTo: "student")
+                            .where("facultyId", isEqualTo: facultyId)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          final studentCount = snapshot.hasData ? snapshot.data!.docs.length.toString() : "";
+                          return _buildGridCard(
+                            context,
+                            title: "Students",
+                            count: studentCount,
+                            icon: Icons.people_alt_rounded,
+                            color: Colors.blue,
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentListScreen())),
+                          );
+                        },
+                      ),
+                      _buildGridCard(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const AssignTaskScreen(initialGroupId: '',),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF60B5FF),
-                            Color(0xFF5EF2D5),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
+                        title: "Internships",
+                        icon: Icons.business_center_rounded,
+                        color: Colors.orange,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompaniesScreen())),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.assignment_add,
-                              color: Color(0xFF60B5FF),
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Assign Task",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Assign tasks to student groups",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 18,
-                            color: Colors.white,
-                          )
-                        ],
+                      _buildGridCard(
+                        context,
+                        title: "Reports",
+                        icon: Icons.assignment_rounded,
+                        color: Colors.deepOrange,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacultyStudentListScreen())),
                       ),
-                    ),
+                      _buildGridCard(
+                        context,
+                        title: "Events",
+                        icon: Icons.event_available_rounded,
+                        color: Colors.green,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacultyCalendarScreen(showBackButton: true))),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 25),
+                  const Text(
+                    "Management",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 15),
+
+                  FacultyActionCard(
+                    icon: Icons.person_search_rounded,
+                    title: "View Mentors",
+                    subtitle: "Manage assigned company mentors",
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacultyCompanyMentorsScreen())),
+                  ),
+                  const SizedBox(height: 15),
+
+                  /// ASSIGN TASK GRADIENT CARD
+                  _buildAssignTaskCard(context),
+                  
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildWarningCard() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Please complete your profile in settings.",
+              style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridCard(BuildContext context, {required String title, String? count, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const SizedBox(height: 10),
+              if (count != null && count.isNotEmpty) ...[
+                Text(
+                  count,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssignTaskCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignTaskScreen(initialGroupId: ''))),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF60B5FF), Color(0xFF5EF2D5)]),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.add_task_rounded, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 15),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Assign New Task", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text("Task groups and individuals", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 18, color: Colors.white),
+          ],
+        ),
+      ),
     );
   }
 }

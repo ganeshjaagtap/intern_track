@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_2/core/utils/user_profile_schema.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -52,9 +53,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   String _getDatabaseRole(String uiRole) {
-    if (uiRole == 'Faculty') return 'faculty';
-    if (uiRole == 'Company Mentor') return 'mentor';
-    return 'student'; 
+    return UserProfileSchema.normalizeRole(uiRole);
   }
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
@@ -68,27 +67,43 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> handleSignUp() async {
-    final name = nameController.text.trim();
-    final email = emailController.text.trim();
+    final name = UserProfileSchema.normalizeName(nameController.text);
+    final email = UserProfileSchema.normalizeEmail(emailController.text);
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
-    final customId = idController.text.trim();
-    final department = deptController.text.trim();
+    final customId = UserProfileSchema.normalizeMentorId(idController.text);
+    final department = UserProfileSchema.normalizeDept(deptController.text);
+    final enrollmentNo =
+        UserProfileSchema.normalizeEnrollmentNo(enrollmentController.text);
+    final college = collegeController.text.trim();
+    final companyName =
+        UserProfileSchema.normalizeCompanyName(companyController.text);
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      _showSnackBar("Please fill in all basic fields.");
+    final nameError = UserProfileSchema.validateRequired(name, 'Full name');
+    final emailError = UserProfileSchema.validateEmail(email);
+    if (nameError.isNotEmpty || emailError.isNotEmpty || password.isEmpty) {
+      _showSnackBar(nameError.isNotEmpty ? nameError : emailError);
       return;
     }
 
-    if (department.isEmpty) {
-      _showSnackBar("Please provide your department.");
+    final departmentError = UserProfileSchema.validateDept(department);
+    if (departmentError.isNotEmpty) {
+      _showSnackBar(departmentError);
       return;
     }
 
-    // Validate ID for Faculty/Mentor
     if (selectedRole != 'Student' && customId.isEmpty) {
       _showSnackBar("Please provide your Employee/Mentor ID.");
       return;
+    }
+
+    if (selectedRole == 'Student') {
+      final enrollmentError =
+          UserProfileSchema.validateEnrollmentNo(enrollmentNo);
+      if (enrollmentError.isNotEmpty) {
+        _showSnackBar(enrollmentError);
+        return;
+      }
     }
 
     if (password != confirmPassword) {
@@ -119,20 +134,26 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         };
 
         if (selectedRole == 'Student') {
-          userData['enrollmentNo'] = enrollmentController.text.trim();
-          userData['college'] = collegeController.text.trim();
+          userData['enrollmentNo'] = enrollmentNo;
+          userData['college'] = college;
           userData['dept'] = department;
           userData['internshipStatus'] = 'Pending';
+          userData['phoneNumber'] = '';
+          userData['company_name'] = '';
+          userData['companyMentorId'] = '';
         } else if (selectedRole == 'Company Mentor') {
-          userData['mentorId'] = customId; // Saving the ID
-          userData['company_name'] = companyController.text.trim();
+          userData['mentorId'] = customId;
+          userData['company_name'] = companyName;
           userData['designation'] = designationController.text.trim();
           userData['dept'] = department;
           userData['total_students'] = 0;
+          userData['phoneNumber'] = '';
         } else if (selectedRole == 'Faculty') {
-          userData['facultyId'] = customId; // Saving the ID
+          userData['facultyId'] = customId;
+          userData['mentorId'] = customId;
           userData['dept'] = department;
-          userData['college'] = collegeController.text.trim();
+          userData['college'] = college;
+          userData['phoneNumber'] = '';
         }
 
         await FirebaseFirestore.instance.collection('user').doc(user.uid).set(userData);

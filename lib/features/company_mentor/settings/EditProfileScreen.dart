@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_2/core/utils/user_profile_schema.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -82,7 +83,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final data = doc.data() as Map<String, dynamic>;
 
-      _fullNameController.text = (data["fullName"] ?? "").toString();
+      _fullNameController.text =
+          (data["fullName"] ?? data["name"] ?? "").toString();
       _emailController.text =
           (data["email"] ?? currentUser.email ?? "").toString();
       _phoneController.text =
@@ -137,11 +139,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           .collection("user")
           .doc(currentUser.uid)
           .update({
-        "fullName": _fullNameController.text.trim(),
-        "phoneNumber": _phoneController.text.trim(),
-        "mentorId": _mentorIdController.text.trim(),
-        "dept": _deptController.text.trim(),
-        "company_name": _companyNameController.text.trim(),
+        "fullName": UserProfileSchema.normalizeName(_fullNameController.text),
+        "email": UserProfileSchema.normalizeEmail(_emailController.text),
+        "phoneNumber": UserProfileSchema.normalizePhoneNumber(
+          _phoneController.text,
+        ),
+        "mentorId": UserProfileSchema.normalizeMentorId(
+          _mentorIdController.text,
+        ),
+        "dept": UserProfileSchema.normalizeDept(_deptController.text),
+        "company_name": UserProfileSchema.normalizeCompanyName(
+          _companyNameController.text,
+        ),
         "designation": _designationController.text.trim(),
         "company_address": _companyAddressController.text.trim(),
         "profileImageUrl": _profileImageUrl,
@@ -369,10 +378,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           label: "Full Name",
                           icon: Icons.person_outline,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return "Enter full name";
-                            }
-                            return null;
+                            final error = UserProfileSchema.validateRequired(
+                              value,
+                              'Full Name',
+                            );
+                            return error.isEmpty ? null : error;
                           },
                         ),
                         const SizedBox(height: 16),
@@ -388,12 +398,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           label: "Phone Number",
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            final error =
+                                UserProfileSchema.validatePhoneNumber(value);
+                            return error.isEmpty ? null : error;
+                          },
                         ),
                         const SizedBox(height: 16),
                         _buildField(
                           controller: _mentorIdController,
                           label: "Mentor ID",
                           icon: Icons.badge_outlined,
+                          validator: (value) {
+                            final error = UserProfileSchema.validateMentorId(
+                              value,
+                              label: 'Mentor ID',
+                            );
+                            return error.isEmpty ? null : error;
+                          },
                         ),
                         const SizedBox(height: 16),
                         _buildField(
@@ -401,10 +423,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           label: "Department",
                           icon: Icons.account_tree_outlined,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return "Enter department";
-                            }
-                            return null;
+                            final error = UserProfileSchema.validateDept(value);
+                            return error.isEmpty ? null : error;
                           },
                         ),
                         const SizedBox(height: 16),
@@ -413,10 +433,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           label: "Company Name",
                           icon: Icons.business_outlined,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return "Enter company name";
-                            }
-                            return null;
+                            final error = UserProfileSchema.validateRequired(
+                              value,
+                              'Company Name',
+                            );
+                            return error.isEmpty ? null : error;
                           },
                         ),
                         const SizedBox(height: 16),

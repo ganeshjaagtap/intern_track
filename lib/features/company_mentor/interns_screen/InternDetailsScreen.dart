@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../chat/ChatScreen.dart';
 
 class InternDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> studentData;
@@ -229,10 +228,6 @@ class InternDetailsScreen extends StatelessWidget {
             ),
             title: Text(mentor['fullName'] ?? "Mentor", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             subtitle: Text(mentor['department'] ?? "Faculty", style: const TextStyle(fontSize: 12)),
-            trailing: IconButton(
-              icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF5F9ED6)),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(title: mentor['fullName']))),
-            ),
           ),
         );
       },

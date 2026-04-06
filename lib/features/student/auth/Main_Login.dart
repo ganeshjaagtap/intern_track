@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_2/core/utils/mentor_emails.dart';
+import 'package:flutter_application_2/core/utils/user_profile_schema.dart';
 import 'package:flutter_application_2/features/student/navigation/StudentMainScreen.dart';
 import 'package:flutter_application_2/features/HOD/layout/hod_main_layout.dart';
 import 'package:flutter_application_2/features/faculty/dashboard/screens/faculty_dashboard_screen.dart';
@@ -212,8 +213,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   /// ---------------- EMAIL LOGIN ----------------
   Future<void> handleLogin() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
+    final email = UserProfileSchema.normalizeEmail(emailController.text);
+    final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       _showError("Enter email and password");
@@ -272,12 +273,59 @@ class _LoginScreenState extends State<LoginScreen>
       _routeByRole(role, email);
       return;
     } on FirebaseAuthException catch (e) {
-      if (mounted) _showError("${e.code}: ${e.message ?? "Login failed"}");
+      if (mounted) _showError(_getLoginErrorMessage(e));
     } catch (e) {
       print("🚨 LOGIN ERROR: $e");
       if (mounted) _showError("Unexpected error: $e");
     }
     if (mounted) setState(() => isLoading = false);
+  }
+
+  String _getLoginErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return "Invalid email or password";
+      case 'invalid-email':
+        return "Invalid email or password";
+      case 'user-disabled':
+        return "This account has been disabled";
+      case 'too-many-requests':
+        return "Too many login attempts. Please try again later";
+      case 'network-request-failed':
+        return "Network error. Please check your internet connection";
+      default:
+        return e.message ?? "Login failed";
+    }
+  }
+
+  Future<void> _sendPasswordReset() async {
+    final email = UserProfileSchema.normalizeEmail(emailController.text);
+    if (email.isEmpty) {
+      _showError("Enter your email first");
+      return;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Password reset link sent to $email"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'user-not-found') {
+        _showError("No account found for that email");
+      } else {
+        _showError(e.message ?? "Could not send password reset email");
+      }
+    } catch (_) {
+      if (mounted) _showError("Could not send password reset email");
+    }
   }
 
   void _routeByRole(String role, String email) {
@@ -334,7 +382,14 @@ class _LoginScreenState extends State<LoginScreen>
                         TextField(controller: emailController, decoration: InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.person, color: primaryBlue), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
                         const SizedBox(height: 16),
                         TextField(controller: passwordController, obscureText: obscurePassword, decoration: InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock, color: primaryBlue), suffixIcon: IconButton(icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => obscurePassword = !obscurePassword)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
-                        const SizedBox(height: 24),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: isLoading ? null : _sendPasswordReset,
+                            child: const Text("Forgot password?"),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isLoading ? null : handleLogin, style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, padding: const EdgeInsets.symmetric(vertical: 14)), child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Login", style: TextStyle(color: Colors.white)))),
                         const SizedBox(height: 16),
                         OutlinedButton.icon(onPressed: isLoading ? null : signInWithGoogle, icon: Image.asset('assets/images/google.png', height: 22), label: const Text("Continue with Google"), style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48), backgroundColor: Colors.white)),

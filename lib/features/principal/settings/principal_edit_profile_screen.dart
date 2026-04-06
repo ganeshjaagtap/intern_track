@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_2/core/utils/user_profile_schema.dart';
 
 class PrincipalEditProfileScreen extends StatefulWidget {
   const PrincipalEditProfileScreen({super.key});
@@ -92,6 +93,36 @@ class _PrincipalEditProfileScreenState extends State<PrincipalEditProfileScreen>
       return;
     }
 
+    final nameError = UserProfileSchema.validateRequired(
+      _fullNameController.text,
+      'Full Name',
+    );
+    final phoneError = UserProfileSchema.validatePhoneNumber(
+      _phoneController.text,
+    );
+    final deptError = UserProfileSchema.validateDept(_deptController.text);
+    final employeeIdError = UserProfileSchema.validateMentorId(
+      _employeeIdController.text,
+      label: 'Employee ID',
+    );
+
+    final firstError = [
+      nameError,
+      phoneError,
+      deptError,
+      employeeIdError,
+    ].firstWhere((error) => error.isNotEmpty, orElse: () => '');
+
+    if (firstError.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(firstError),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -99,11 +130,18 @@ class _PrincipalEditProfileScreenState extends State<PrincipalEditProfileScreen>
           .collection('user')
           .doc(currentUser.uid)
           .set({
-        'fullName': _fullNameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phoneNumber': _phoneController.text.trim(),
-        'principalId': _employeeIdController.text.trim(),
-        'dept': _deptController.text.trim(),
+        'fullName': UserProfileSchema.normalizeName(_fullNameController.text),
+        'email': UserProfileSchema.normalizeEmail(_emailController.text),
+        'phoneNumber': UserProfileSchema.normalizePhoneNumber(
+          _phoneController.text,
+        ),
+        'principalId': UserProfileSchema.normalizeMentorId(
+          _employeeIdController.text,
+        ),
+        'employeeId': UserProfileSchema.normalizeMentorId(
+          _employeeIdController.text,
+        ),
+        'dept': UserProfileSchema.normalizeDept(_deptController.text),
         'profileImageUrl': _profileImageUrl,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

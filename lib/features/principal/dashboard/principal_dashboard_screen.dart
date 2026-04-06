@@ -160,7 +160,6 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
               // ✅ Updated: Overall Student Info Card (No Count)
               _buildStatCard(
                 icon: Icons.people,
-                number: "View",
                 label: "Overall Student Info",
                 color: coolSky.withOpacity(0.25),
                 iconColor: Colors.blue,
@@ -175,7 +174,6 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
               // ✅ Updated: Active Intern Info Card (No Count)
               _buildStatCard(
                 icon: Icons.work,
-                number: "Track",
                 label: "Active Intern Info",
                 color: jasmine.withOpacity(0.6),
                 iconColor: Colors.orange,
@@ -211,7 +209,6 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
 
   Widget _buildStatCard({
     required IconData icon,
-    required String number,
     required String label,
     required Color color,
     required Color iconColor,
@@ -221,46 +218,34 @@ class _PrincipalDashboardScreenState extends State<PrincipalDashboardScreen> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 85,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 120,
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 22, color: iconColor),
+                child: Icon(icon, size: 18, color: iconColor),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      number,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                    ),
-                  ],
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ],
           ),

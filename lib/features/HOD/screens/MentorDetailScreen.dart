@@ -16,6 +16,7 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
   static const Color primaryBlue = Color(0xFF64A9F6);
 
   int totalStudents = 0;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -47,6 +48,122 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
     setState(() {
       totalStudents = snapshot.docs.length;
     });
+  }
+
+  Future<void> _confirmDeleteMentor() async {
+    if (_isDeleting) return;
+
+    final name = widget.mentorData['name'] ?? "this mentor";
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Delete Mentor"),
+          content: Text(
+            "Are you sure you want to delete $name? This will remove the mentor from Firestore and clear linked student assignments.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      await _deleteMentor();
+    }
+  }
+
+  Future<void> _deleteMentor() async {
+    final mentorDocId = (widget.mentorData['docId'] ?? "").trim();
+    final facultyId = (widget.mentorData['id'] ?? "").trim();
+    final mentorName = widget.mentorData['name'] ?? "Mentor";
+
+    if (mentorDocId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to delete mentor: missing document ID."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      if (facultyId.isNotEmpty) {
+        final linkedStudents = await firestore
+            .collection('user')
+            .where('role', isEqualTo: 'student')
+            .where('facultyId', isEqualTo: facultyId)
+            .get();
+
+        for (final chunk in _chunkDocuments(linkedStudents.docs, 400)) {
+          final batch = firestore.batch();
+
+          for (final studentDoc in chunk) {
+            batch.update(studentDoc.reference, {
+              'facultyId': FieldValue.delete(),
+              'collegeMentor': FieldValue.delete(),
+              'facultyMentorName': FieldValue.delete(),
+              'facultyName': FieldValue.delete(),
+            });
+          }
+
+          await batch.commit();
+        }
+      }
+
+      await firestore.collection('user').doc(mentorDocId).delete();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("$mentorName deleted successfully."),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to delete mentor: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        _isDeleting = false;
+      });
+    }
+  }
+
+  List<List<QueryDocumentSnapshot>> _chunkDocuments(
+    List<QueryDocumentSnapshot> docs,
+    int chunkSize,
+  ) {
+    final chunks = <List<QueryDocumentSnapshot>>[];
+
+    for (var i = 0; i < docs.length; i += chunkSize) {
+      final end = (i + chunkSize > docs.length) ? docs.length : i + chunkSize;
+      chunks.add(docs.sublist(i, end));
+    }
+
+    return chunks;
   }
 
   @override
@@ -191,6 +308,40 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
                       onPressed: email.isEmpty ? null : () => _launchEmail(email),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      icon: _isDeleting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.delete_outline),
+                      label: Text(
+                        _isDeleting ? "DELETING..." : "DELETE MENTOR",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      onPressed: _isDeleting ? null : _confirmDeleteMentor,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        disabledBackgroundColor: Colors.red.shade300,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),

@@ -108,33 +108,30 @@ class _CompanyMentorDashboardScreenState
               _buildCompanyProfileCard(),
               const SizedBox(height: 24),
               
-              // --- ROW 1: ACTION CARDS ---
-              Row(
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.45,
                 children: [
                   _buildNavCard(
                     context,
                     destination: const TaskOfMentorScreen(),
                     icon: Icons.add_task,
-                    label: "Add Task", // Changed label to be more descriptive without number
+                    label: "Add Task",
                     bg: const Color(0xFFD6E9FF),
                     iconColor: Colors.blue,
                   ),
-                  const SizedBox(width: 12),
                   _buildNavCard(
                     context,
                     destination: const CompanyMentorPendingScreen(),
-                    icon: Icons.rate_review_outlined, 
-                    label: "Review Task", // Changed label to be more descriptive without number
+                    icon: Icons.rate_review_outlined,
+                    label: "Review Task",
                     bg: const Color(0xFFFFE4B5),
                     iconColor: Colors.orange,
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // --- ROW 2: STAT CARDS ---
-              Row(
-                children: [
                   _buildNavCard(
                     context,
                     destination: const CompanyMentorPerformanceScreen(),
@@ -143,7 +140,6 @@ class _CompanyMentorDashboardScreenState
                     bg: const Color(0xFFDFF5EA),
                     iconColor: Colors.green,
                   ),
-                  const SizedBox(width: 12),
                   _buildNavCard(
                     context,
                     destination: const CollegeMentorsScreen(),
@@ -226,11 +222,9 @@ class _CompanyMentorDashboardScreenState
   }
 
   Widget _buildNavCard(BuildContext context, {required Widget destination, required IconData icon, required String label, required Color bg, required Color iconColor}) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => destination)),
-        child: MiniStatCard(icon: icon, label: label, bg: bg, iconColor: iconColor),
-      ),
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => destination)),
+      child: MiniStatCard(icon: icon, label: label, bg: bg, iconColor: iconColor),
     );
   }
 
@@ -276,20 +270,27 @@ class MiniStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, // Center items since number is removed
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(backgroundColor: Colors.white, radius: 18, child: Icon(icon, color: iconColor, size: 20)),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              label, 
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), // Clean bold text
-              maxLines: 1, 
-              overflow: TextOverflow.ellipsis
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_application_2/core/utils/user_profile_schema.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -86,12 +87,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (docSnapshot.exists) {
           final data = docSnapshot.data() as Map<String, dynamic>;
           setState(() {
-            fullNameController.text = data['fullName'] ?? '';
-            enrollmentNoController.text = data['enrollmentNo'] ?? '';
-            deptController.text = data['dept'] ?? '';
-            emailController.text = data['email'] ?? '';
-            phoneController.text = data['phoneNumber'] ?? '';
-            companyController.text = data['company'] ?? '';
+            fullNameController.text =
+                (data['fullName'] ?? data['name'] ?? '').toString();
+            enrollmentNoController.text =
+                (data['enrollmentNo'] ?? '').toString();
+            deptController.text = (data['dept'] ?? '').toString();
+            emailController.text = (data['email'] ?? '').toString();
+            phoneController.text =
+                (data['phoneNumber'] ?? data['phone'] ?? '').toString();
+            companyController.text =
+                (data['company_name'] ?? data['company'] ?? '').toString();
             internshipRoleController.text = data['internshipRole'] ?? '';
 
             // Loading Names
@@ -139,13 +144,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             .collection('user')
             .doc(user.uid)
             .update({
-          'fullName': fullNameController.text.trim(),
-          'enrollmentNo': enrollmentNoController.text.trim(),
-          'dept': deptController.text.trim(),
-          'email': emailController.text.trim(),
-          'phoneNumber': phoneController.text.trim(),
+          'fullName': UserProfileSchema.normalizeName(fullNameController.text),
+          'enrollmentNo': UserProfileSchema.normalizeEnrollmentNo(
+            enrollmentNoController.text,
+          ),
+          'dept': UserProfileSchema.normalizeDept(deptController.text),
+          'email': UserProfileSchema.normalizeEmail(emailController.text),
+          'phoneNumber': UserProfileSchema.normalizePhoneNumber(
+            phoneController.text,
+          ),
           'year': selectedYear,
-          'company': companyController.text.trim(),
+          'company': UserProfileSchema.normalizeCompanyName(
+            companyController.text,
+          ),
+          'company_name': UserProfileSchema.normalizeCompanyName(
+            companyController.text,
+          ),
           'internshipRole': internshipRoleController.text.trim(),
           'internshipStatus': selectedStatus,
           'internshipType': selectedType,
@@ -157,10 +171,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               : null,
 
           // Mentor details
-          'collegeMentor': collegeMentorController.text.trim(),
-          'facultyId': facultyMentorIdController.text.trim(),
-          'companyMentor': companyMentorController.text.trim(),
-          'companyMentorId': companyMentorIdController.text.trim(),
+          'collegeMentor': UserProfileSchema.normalizeName(
+            collegeMentorController.text,
+          ),
+          'facultyId': UserProfileSchema.normalizeMentorId(
+            facultyMentorIdController.text,
+          ),
+          'companyMentor': UserProfileSchema.normalizeName(
+            companyMentorController.text,
+          ),
+          'companyMentorId': UserProfileSchema.normalizeCompanyMentorId(
+            companyMentorIdController.text,
+          ),
 
           // Keep image URL synced
           'profileImageUrl': _profileImageUrl,
@@ -362,12 +384,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: fullNameController,
                         label: "Student Full Name",
                         icon: Icons.person_outline,
+                        validator: (value) {
+                          final error = UserProfileSchema.validateRequired(
+                            value,
+                            'Student Full Name',
+                          );
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _inputField(
                         controller: enrollmentNoController,
                         label: "Enrollment Number",
                         icon: Icons.confirmation_number_outlined,
+                        validator: (value) {
+                          final error =
+                              UserProfileSchema.validateEnrollmentNo(value);
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _buildDropdownField(
@@ -382,6 +416,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: deptController,
                         label: "Department",
                         icon: Icons.account_tree_outlined,
+                        validator: (value) {
+                          final error = UserProfileSchema.validateDept(value);
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _inputField(
@@ -389,6 +427,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         label: "Phone Number",
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          final error =
+                              UserProfileSchema.validatePhoneNumber(value);
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _inputField(
@@ -396,6 +439,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         label: "Email",
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          final error = UserProfileSchema.validateEmail(value);
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                     ]),
 
@@ -408,6 +455,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: companyController,
                         label: "Company Name",
                         icon: Icons.business_outlined,
+                        validator: (value) {
+                          final error = UserProfileSchema.validateRequired(
+                            value,
+                            'Company Name',
+                          );
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _inputField(
@@ -463,6 +517,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: facultyMentorIdController,
                         label: "Faculty Mentor ID",
                         icon: Icons.badge_outlined,
+                        validator: (value) {
+                          final normalized =
+                              UserProfileSchema.normalizeMentorId(value);
+                          if (normalized.isEmpty) {
+                            return null;
+                          }
+                          final error = UserProfileSchema.validateMentorId(
+                            value,
+                            label: 'Faculty Mentor ID',
+                          );
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                       const SizedBox(height: 14),
                       _inputField(
@@ -475,6 +541,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: companyMentorIdController,
                         label: "Company Mentor ID",
                         icon: Icons.fingerprint_outlined,
+                        validator: (value) {
+                          final normalized =
+                              UserProfileSchema.normalizeCompanyMentorId(value);
+                          if (normalized.isEmpty) {
+                            return null;
+                          }
+                          final error = UserProfileSchema.validateMentorId(
+                            value,
+                            label: 'Company Mentor ID',
+                          );
+                          return error.isEmpty ? null : error;
+                        },
                       ),
                     ]),
 
